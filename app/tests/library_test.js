@@ -4,6 +4,7 @@ require('#{APPNAME}/library');
 Ember.ENV.TESTING = true;
 
 var get = Ember.get;
+var set = Ember.set;
 
 var adapter;
 var store;
@@ -81,7 +82,7 @@ function() {
   ok(DS.Adapter.detect(CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
 });
 
-test("creating a person makes a POST to /db",
+test("creating a person makes a POST to /db with data hash",
 function() {
   person = store.createRecord(Person, {
     name: 'Tobias Fünke'
@@ -94,18 +95,56 @@ function() {
   expectUrl('/db', 'the database name');
   expectType('POST');
   expectData({
-    person: {
-      name: "Tobias Fünke"
-    }
+    name: "Tobias Fünke"
   });
 
   ajaxHash.success({
-    person: {
-      id: "abc",
-      name: "Tobias Fünke"
-    }
+    ok: true,
+    id: "abc",
+    rev: "1-abc"
   });
   expectState('saving', false);
 
   equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
+  equal(get(person, '_rev'), '1-abc', "the revision is stored on the data");
+});
+
+test("updating a person makes a PUT to /db/:id with data hash",
+function() {
+  store.load(Person, {
+    id: 'abc',
+    rev: '1-abc',
+    name: 'Tobias Fünke'
+  });
+
+  person = store.find(Person, 'abc');
+
+  expectState('new', false);
+  expectState('loaded');
+  expectState('dirty', false);
+
+  set(person, 'name', 'Nelly Fünke');
+
+  expectState('dirty');
+  store.commit();
+  expectState('saving');
+
+  expectUrl('/db/abc', 'the database name with the record ID');
+  expectType('PUT');
+  expectData({
+    "_id": "abc",
+    "_rev": "1-abc",
+    name: "Tobias Fünke"
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 'abc',
+    rev: '2-def'
+  });
+  expectState('saving', false);
+
+  equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
+  equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
+  equal(get(person, '_rev'), '2-def', "the revision is updated");
 });
