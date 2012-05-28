@@ -80,5 +80,5 @@ desc "Upload latest build of #{APPNAME} to GitHub repository"
 task :upload_latest do
   uploader = setup_uploader
 
-  upload_file(uploader, "#{APPNAME}.js", "#{APPNAME} Master", "app/lib/library.js")
+  upload_file(uploader, "#{APPNAME}-latest.js", "#{APPNAME} Master", "app/lib/library.js")
 end
