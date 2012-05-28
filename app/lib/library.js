@@ -1,0 +1,1 @@
+Library = Ember.Namespace.create();
