@@ -148,3 +148,34 @@ function() {
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
   equal(get(person, '_rev'), '2-def', "the revision is updated");
 });
+
+test("deleting a person makes a DELETE to /db/:id",
+function() {
+  store.load(Person, {
+    id: 'abc',
+    rev: '1-abc',
+    name: "Tobias Fünke"
+  });
+
+  person = store.find(Person, "abc");
+
+  expectState('new', false);
+  expectState('loaded');
+  expectState('dirty', false);
+
+  person.deleteRecord();
+
+  expectState('dirty');
+  expectState('deleted');
+  store.commit();
+  expectState('saving');
+
+  expectUrl("/db/abc?rev=1-abc", "the database name with the record ID and rev as parameter");
+  expectType("DELETE");
+
+  ajaxHash.success({
+    ok: true,
+    rev: '2-abc'
+  });
+  expectState('deleted');
+});
