@@ -1,1 +1,1 @@
-Library = Ember.Namespace.create();
+CouchDBAdapter = Ember.Object.extend();

@@ -2,6 +2,6 @@ require('#{APPNAME}/library');
 
 module("library");
 
-test("Library is defined", function () {
-  ok(Library !== undefined, "Library is undefined");
+test("CouchDBAdapter is defined", function() {
+    ok(CouchDBAdapter !== undefined, "CouchDBAdapter is undefined");
 });

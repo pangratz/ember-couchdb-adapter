@@ -1,4 +1,4 @@
-APPNAME = 'library'
+APPNAME = 'ember-couchdb-adapter'
 
 require 'colored'
 require 'rake-pipeline'
