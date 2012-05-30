@@ -1,5 +1,5 @@
 require('#{APPNAME}/core');
-require('#{APPNAME}/couchdb_adapter');
+require('#{APPNAME}/#{APPNAME}');
 
 Ember.ENV.TESTING = true;
 
