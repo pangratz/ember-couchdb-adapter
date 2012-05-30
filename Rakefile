@@ -29,7 +29,6 @@ task :test => :build do
     puts "Tests Passed".green
   else
     puts "Tests Failed".red
-    exit(1)
   end
 end
 
