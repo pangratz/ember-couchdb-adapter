@@ -1,4 +1,4 @@
-APPNAME = 'ember-couchdb-adapter'
+APPNAME = 'ember_couchdb_adapter'
 
 require 'json'
 require 'rake-pipeline-web-filters'
