@@ -1,6 +1,3 @@
-require('#{APPNAME}/core');
-require('#{APPNAME}/#{APPNAME}');
-
 Ember.ENV.TESTING = true;
 
 var get = Ember.get;
@@ -40,7 +37,9 @@ var expectState = function(state, value, p) {
 
 module("CouchDBAdapter", {
   setup: function() {
-    adapter = CouchDBAdapter.create({
+    adapter = DS.CouchDBAdapter.create({
+      db: 'DB_NAME',
+      designDoc: 'DESIGN_DOC',
       ajax: function(url, type, hash) {
         var success = hash.success,
         self = this;
@@ -72,18 +71,22 @@ module("CouchDBAdapter", {
   }
 });
 
-test("is defined",
-function() {
-  ok(CouchDBAdapter !== undefined, "CouchDBAdapter is undefined");
+test("is defined", function() {
+  ok(DS.CouchDBAdapter !== undefined, "DS.CouchDBAdapter is undefined");
 });
 
-test("is a subclass of DS.Adapter",
-function() {
-  ok(DS.Adapter.detect(CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
+test("is a subclass of DS.Adapter", function() {
+  ok(DS.Adapter.detect(DS.CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
 });
 
-test("creating a person makes a POST to /db with data hash",
-function() {
+test("finding a person makes a GET to /db/:id", function() {
+  person = store.find(Person, 1);
+
+  expectState('loaded', false);
+  expectUrl('/db/1');
+});
+
+test("creating a person makes a POST to /db with data hash", function() {
   person = store.createRecord(Person, {
     name: 'Tobias Fünke'
   });
@@ -109,8 +112,7 @@ function() {
   equal(get(person, '_rev'), '1-abc', "the revision is stored on the data");
 });
 
-test("updating a person makes a PUT to /db/:id with data hash",
-function() {
+test("updating a person makes a PUT to /db/:id with data hash", function() {
   store.load(Person, {
     id: 'abc',
     rev: '1-abc',
@@ -149,8 +151,7 @@ function() {
   equal(get(person, '_rev'), '2-def', "the revision is updated");
 });
 
-test("deleting a person makes a DELETE to /db/:id",
-function() {
+test("deleting a person makes a DELETE to /db/:id", function() {
   store.load(Person, {
     id: 'abc',
     rev: '1-abc',
@@ -180,8 +181,7 @@ function() {
   expectState('deleted');
 });
 
-test("bulkCommit=true makes a POST to /db/_bulk_docs",
-function() {
+test("bulkCommit=true makes a POST to /db/_bulk_docs", function() {
   person = store.createRecord(Person, {
     name: 'Tobias Fünke'
   });
@@ -209,4 +209,14 @@ function() {
 
   equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
   equal(get(person, '_rev'), '1-abc', "the revision is stored on the data");
+});
+
+test("a view is requested via findQuery of type 'view'", function() {
+  var persons = store.findQuery(Person, {
+    type: 'view',
+    viewName: 'PERSONS_VIEW'
+  });
+
+  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
+  expectType('GET');
 });
