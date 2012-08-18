@@ -35,41 +35,28 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       return this._super(store, commitDetails);
     }
 
+    var adapter = this;
     var responseCallbacks = [];
     var data = [];
     commitDetails.created.eachType(function(type, array) {
       data.pushObjects(array.map(function(record) {
-        responseCallbacks.pushObject(function(response) {
-          store.didCreateRecord(record, $.extend(json, response));
-        });
-        var json = record.toJSON();
-        delete json.rev;
+        var json = {};
+        responseCallbacks.pushObject(adapter._createRecord(store, type, record, json));
         return json;
       }));
     });
     commitDetails.updated.eachType(function(type, array) {
       data.pushObjects(array.map(function(record) {
-        responseCallbacks.pushObject(function(response) {
-          store.didUpdateRecord(record, $.extend(json, response));
-        });
-        var json = record.toJSON();
-        json._id = json.id;
-        json._rev = json.rev;
-        delete json.id;
-        delete json.rev;
+        var json = {};
+        responseCallbacks.pushObject(adapter._updateRecord(store, type, record, json));
         return json;
       }));
     });
     commitDetails.deleted.eachType(function(type, array) {
       data.pushObjects(array.map(function(record) {
-        responseCallbacks.pushObject(function(response) {
-          store.didDeleteRecord(record);
-        });
-        return {
-          _id: record.get('id'),
-          _rev: record.get('rev'),
-          _deleted: true
-        };
+        var json = {};
+        responseCallbacks.pushObject(adapter._deleteRecord(store, type, record, json));
+        return json;
       }));
     });
     this.ajax('_bulk_docs', 'POST', {
@@ -83,39 +70,65 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     });
   },
 
-  createRecord: function(store, type, record) {
+  _createRecord: function(store, type, record, hash) {
     var json = record.toJSON();
     delete json.rev;
-    this.ajax('', 'POST', {
-      data: json,
-      context: this,
-      success: function(data) {
-        store.didCreateRecord(record, $.extend(json, data));
-      }
-    });
+    $.extend(hash, json);
+
+    return function(data) {
+      store.didCreateRecord(record, $.extend(json, data));
+    };
   },
 
-  updateRecord: function(store, type, record) {
+  _updateRecord: function(store, type, record, hash) {
     var json = record.toJSON();
     json._id = json.id;
     json._rev = json.rev;
     delete json.id;
     delete json.rev;
-    this.ajax(json._id, 'PUT', {
+    $.extend(hash, json);
+
+    return function(data) {
+      store.didUpdateRecord(record, $.extend(json, data));
+    };
+  },
+
+  _deleteRecord: function(store, type, record, hash) {
+    var json = {
+      _id: record.get('id'),
+      _rev: record.get('rev'),
+      _deleted: true
+    };    
+    $.extend(hash, json);
+
+    return function(data) {
+      store.didDeleteRecord(record);
+    };
+  },
+
+  createRecord: function(store, type, record) {
+    var json = {};
+    this.ajax('', 'POST', {
       data: json,
       context: this,
-      success: function(data) {
-        store.didUpdateRecord(record, $.extend(json, data));
-      }
+      success: this._createRecord(store, type, record, json)
+    });
+  },
+
+  updateRecord: function(store, type, record) {
+    var json = {};
+    this.ajax(record.get('id'), 'PUT', {
+      data: json,
+      context: this,
+      success: this._updateRecord(store, type, record, json)
     });
   },
 
   deleteRecord: function(store, type, record) {
+    var json = {};
     this.ajax(record.get('id') + '?rev=' + record.get('rev'), 'DELETE', {
       context: this,
-      success: function(data) {
-        store.didDeleteRecord(record);
-      }
+      success: this._deleteRecord(store, type, record, json)
     });
   }
 });
