@@ -26,10 +26,14 @@ Now you're setup to use the CouchDBAdapter in your Ember.js application:
 ``` javascript
 App = Ember.Application.create();
 App.Store = DS.Store.create({
-  adapter: DS.CouchDBAdapter.create(),
+  adapter: DS.CouchDBAdapter.create({
+    db: 'db-name'
+  }),
   revision: 4
 });
 ```
+
+You have to specify the name of the database with the `db` property.
 
 Get started
 -----------
