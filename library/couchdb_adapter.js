@@ -3,15 +3,27 @@ CouchDBModel = Ember.Mixin.create({
 });
 
 DS.CouchDBAdapter = DS.Adapter.extend({
+  typeAttribute: 'ember_type',
+  typeViewName: 'by-ember-type',
+
   _ajax: Ember.K,
+
   ajax: function(url, type, hash) {
     var db = this.get('db');
-    return this._ajax('/%@/%@'.fmt(db, url), type, hash);
+    return this._ajax('/%@/%@'.fmt(db, url || ''), type, hash);
+  },
+
+  stringForType: function(type) {
+    return type.toString();
+  },
+
+  addTypeProperty: function(json, type) {
+    var typeAttribute = this.get('typeAttribute');
+    json[typeAttribute] = this.stringForType(type);
   },
 
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
-      data: {},
       context: this,
       success: function(data) {
         store.load(type, data);
@@ -36,10 +48,21 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     }
   },
 
-  findAll: Ember.K,
+  findAll: function(store, type) {
+    var designDoc = this.get('designDoc');
+    var typeViewName = this.get('typeViewName');
+    var typeString = this.stringForType(type);
+    this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
+      context: this,
+      success: function(data) {
+        store.loadMany(type, data.rows.getEach('doc'));
+      }
+    });
+  },
 
   createRecord: function(store, type, record) {
     var json = record.toJSON();
+    this.addTypeProperty(json, type);
     delete json.rev;
     this.ajax('', 'POST', {
       data: json,
@@ -52,6 +75,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   updateRecord: function(store, type, record) {
     var json = record.toJSON();
+    this.addTypeProperty(json, type);
     json._id = json.id;
     json._rev = json.rev;
     delete json.id;

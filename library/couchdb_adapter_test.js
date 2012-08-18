@@ -64,6 +64,7 @@ module("CouchDBAdapter", {
       name: DS.attr('string'),
       rev: DS.attr('string')
     });
+    Person.toString = function() { return 'Person'; };
   },
 
   teardown: function() {
@@ -78,6 +79,10 @@ test("is defined", function() {
 
 test("is a subclass of DS.Adapter", function() {
   ok(DS.Adapter.detect(DS.CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
+});
+
+test("stringForType by default returns the value of toString", function() {
+  equal(adapter.stringForType(Person), 'Person');
 });
 
 test("finding a person makes a GET to /DB_NAME/:id", function() {
@@ -99,7 +104,8 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
   expectUrl('/DB_NAME/', 'the database name');
   expectType('POST');
   expectData({
-    name: "Tobias Fünke"
+    name: "Tobias Fünke",
+    ember_type: 'Person',
   });
 
   ajaxHash.success({
@@ -137,6 +143,7 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
   expectData({
     "_id": "abc",
     "_rev": "1-abc",
+    ember_type: 'Person',
     name: "Nelly Fünke"
   });
 
@@ -201,6 +208,26 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
 
   equal(store.find(Person, 1).get('name'), 'first');
   equal(store.find(Person, 2).get('name'), 'second');
+});
+
+test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
+  var allPersons = store.findAll(Person);
+
+  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/by-ember-type?include_docs=true&key="Person"');
+  expectType('GET');
+  equal(allPersons.get('length'), 0);
+
+  ajaxHash.success({
+    rows: [
+      { doc: { id: 1, rev: 'a', name: 'first' } },
+      { doc: { id: 2, rev: 'b', name: 'second' } },
+      { doc: { id: 3, rev: 'c', name: 'third' } }
+    ]
+  });
+
+  equal(allPersons.get('length'), 3);
+  equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 3).get('name'), 'third');
 });
 
 test("a view is requested via findQuery of type 'view'", function() {
