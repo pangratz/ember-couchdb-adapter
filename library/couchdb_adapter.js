@@ -34,6 +34,14 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     json[typeAttribute] = this.stringForType(type);
   },
 
+  _loadMany: function(store, type, docs) {
+    store.loadMany(type, docs.map(function(record) {
+      record.id = record._id;
+      record.rev = record._rev;
+      return record;
+    }));
+  },
+
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
       context: this,
@@ -48,7 +56,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: { keys: ids },
       context: this,
       success: function(data) {
-        store.loadMany(type, data.rows.getEach('doc'));
+        this._loadMany(store, type, data.rows.getEach('doc'));
       }
     });
   },
@@ -67,7 +75,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
       context: this,
       success: function(data) {
-        store.loadMany(type, data.rows.getEach('doc'));
+        this._loadMany(store, type, data.rows.getEach('doc'));
       }
     });
   },

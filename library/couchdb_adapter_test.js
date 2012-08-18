@@ -200,14 +200,17 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
 
   ajaxHash.success({
     rows: [{
-      doc: { id: 1, rev: 'abc', name: 'first'}
+      doc: { _id: 1, _rev: 'abc', name: 'first'}
     }, {
-      doc: { id: 2, rev: 'def', name: 'second'}
+      doc: { _id: 2, _rev: 'def', name: 'second'}
     }]
   });
 
   equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 1).get('rev'), 'abc');
+
   equal(store.find(Person, 2).get('name'), 'second');
+  equal(store.find(Person, 2).get('rev'), 'def');
 });
 
 test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
@@ -219,15 +222,19 @@ test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", 
 
   ajaxHash.success({
     rows: [
-      { doc: { id: 1, rev: 'a', name: 'first' } },
-      { doc: { id: 2, rev: 'b', name: 'second' } },
-      { doc: { id: 3, rev: 'c', name: 'third' } }
+      { doc: { _id: 1, _rev: 'a', name: 'first' } },
+      { doc: { _id: 2, _rev: 'b', name: 'second' } },
+      { doc: { _id: 3, _rev: 'c', name: 'third' } }
     ]
   });
 
   equal(allPersons.get('length'), 3);
+
   equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 1).get('rev'), 'a');
+
   equal(store.find(Person, 3).get('name'), 'third');
+  equal(store.find(Person, 3).get('rev'), 'c');
 });
 
 test("a view is requested via findQuery of type 'view'", function() {
