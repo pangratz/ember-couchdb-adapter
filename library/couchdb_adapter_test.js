@@ -40,7 +40,7 @@ module("CouchDBAdapter", {
     adapter = DS.CouchDBAdapter.create({
       db: 'DB_NAME',
       designDoc: 'DESIGN_DOC',
-      ajax: function(url, type, hash) {
+      _ajax: function(url, type, hash) {
         var success = hash.success,
         self = this;
 
@@ -61,7 +61,8 @@ module("CouchDBAdapter", {
     });
 
     Person = DS.Model.extend({
-      name: DS.attr('string')
+      name: DS.attr('string'),
+      rev: DS.attr('string')
     });
   },
 
@@ -79,14 +80,14 @@ test("is a subclass of DS.Adapter", function() {
   ok(DS.Adapter.detect(DS.CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
 });
 
-test("finding a person makes a GET to /db/:id", function() {
+test("finding a person makes a GET to /DB_NAME/:id", function() {
   person = store.find(Person, 1);
 
   expectState('loaded', false);
-  expectUrl('/db/1');
+  expectUrl('/DB_NAME/1');
 });
 
-test("creating a person makes a POST to /db with data hash", function() {
+test("creating a person makes a POST to /DB_NAME with data hash", function() {
   person = store.createRecord(Person, {
     name: 'Tobias Fünke'
   });
@@ -95,7 +96,7 @@ test("creating a person makes a POST to /db with data hash", function() {
   store.commit();
   expectState('saving');
 
-  expectUrl('/db', 'the database name');
+  expectUrl('/DB_NAME/', 'the database name');
   expectType('POST');
   expectData({
     name: "Tobias Fünke"
@@ -109,10 +110,10 @@ test("creating a person makes a POST to /db with data hash", function() {
   expectState('saving', false);
 
   equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
-  equal(get(person, '_rev'), '1-abc', "the revision is stored on the data");
+  equal(get(person, 'rev'), '1-abc', "the revision is stored on the data");
 });
 
-test("updating a person makes a PUT to /db/:id with data hash", function() {
+test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() {
   store.load(Person, {
     id: 'abc',
     rev: '1-abc',
@@ -131,12 +132,12 @@ test("updating a person makes a PUT to /db/:id with data hash", function() {
   store.commit();
   expectState('saving');
 
-  expectUrl('/db/abc', 'the database name with the record ID');
+  expectUrl('/DB_NAME/abc', 'the database name with the record ID');
   expectType('PUT');
   expectData({
     "_id": "abc",
     "_rev": "1-abc",
-    name: "Tobias Fünke"
+    name: "Nelly Fünke"
   });
 
   ajaxHash.success({
@@ -148,10 +149,10 @@ test("updating a person makes a PUT to /db/:id with data hash", function() {
 
   equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
-  equal(get(person, '_rev'), '2-def', "the revision is updated");
+  equal(get(person, 'rev'), '2-def', "the revision is updated");
 });
 
-test("deleting a person makes a DELETE to /db/:id", function() {
+test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
   store.load(Person, {
     id: 'abc',
     rev: '1-abc',
@@ -171,7 +172,7 @@ test("deleting a person makes a DELETE to /db/:id", function() {
   store.commit();
   expectState('saving');
 
-  expectUrl("/db/abc?rev=1-abc", "the database name with the record ID and rev as parameter");
+  expectUrl("/DB_NAME/abc?rev=1-abc", "the database name with the record ID and rev as parameter");
   expectType("DELETE");
 
   ajaxHash.success({
@@ -181,7 +182,7 @@ test("deleting a person makes a DELETE to /db/:id", function() {
   expectState('deleted');
 });
 
-test("bulkCommit=true makes a POST to /db/_bulk_docs", function() {
+test("bulkCommit=true makes a POST to /DB_NAME/_bulk_docs", function() {
   person = store.createRecord(Person, {
     name: 'Tobias Fünke'
   });
