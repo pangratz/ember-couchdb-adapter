@@ -1,3 +1,7 @@
+CouchDBModel = Ember.Mixin.create({
+  rev: DS.attr('string')
+});
+
 DS.CouchDBAdapter = DS.Adapter.extend({
   _ajax: Ember.K,
   ajax: function(url, type, hash) {
@@ -18,10 +22,9 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   findMany: Ember.K,
 
   findQuery: function(store, type, query, modelArray) {
-    var db = this.get('db');
     var designDoc = this.get('designDoc');
     if (query.type === 'view') {
-      this.ajax('/%@/_design/%@/_view/%@'.fmt(db, query.designDoc || designDoc, query.viewName), 'GET', {});
+      this.ajax('_design/%@/_view/%@'.fmt(query.designDoc || designDoc, query.viewName), 'GET', {});
     }
   },
 
@@ -56,7 +59,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   deleteRecord: function(store, type, record) {
     this.ajax(record.get('id') + '?rev=' + record.get('rev'), 'DELETE', {
-      data: {},
       context: this,
       success: function(data) {
         store.didDeleteRecord(record);

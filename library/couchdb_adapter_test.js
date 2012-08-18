@@ -221,3 +221,19 @@ test("a view is requested via findQuery of type 'view'", function() {
   expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
   expectType('GET');
 });
+
+
+module("CouchDBModel");
+
+test("is defined", function() {
+  ok(CouchDBModel);
+});
+
+test("adds 'rev' property", function() {
+  var MyModel = DS.Model.extend(CouchDBModel);
+  var attrs = Ember.get(MyModel, 'attributes');
+
+  var revAttr = attrs.get('rev');
+  equal(revAttr.type, 'string');
+  equal(revAttr.key(MyModel), 'rev');
+});
