@@ -10,7 +10,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   ajax: function(url, type, hash) {
     var db = this.get('db');
-    return this._ajax('/%@/%@'.fmt(db, url), type, hash);
+    return this._ajax('/%@/%@'.fmt(db, url || ''), type, hash);
   },
 
   stringForType: function(type) {
