@@ -104,7 +104,8 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
   expectUrl('/DB_NAME/', 'the database name');
   expectType('POST');
   expectData({
-    name: "Tobias Fünke"
+    name: "Tobias Fünke",
+    ember_type: 'Person',
   });
 
   ajaxHash.success({
@@ -142,6 +143,7 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
   expectData({
     "_id": "abc",
     "_rev": "1-abc",
+    ember_type: 'Person',
     name: "Nelly Fünke"
   });
 

@@ -16,6 +16,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     return type.toString();
   },
 
+  addTypeProperty: function(json, type) {
+    var typeAttribute = this.get('typeAttribute');
+    json[typeAttribute] = this.stringForType(type);
+  },
+
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
       data: {},
@@ -47,8 +52,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   createRecord: function(store, type, record) {
     var json = record.toJSON();
-    var typeAttribute = this.get('typeAttribute');
-    json[typeAttribute] = this.stringForType(type);
+    this.addTypeProperty(json, type);
     delete json.rev;
     this.ajax('', 'POST', {
       data: json,
@@ -61,6 +65,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   updateRecord: function(store, type, record) {
     var json = record.toJSON();
+    this.addTypeProperty(json, type);
     json._id = json.id;
     json._rev = json.rev;
     delete json.id;
