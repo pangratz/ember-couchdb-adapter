@@ -35,6 +35,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   _loadMany: function(store, type, docs) {
+    // CouchDB returns id and revision of a document via _id and _rev, so we need to map it to id and rev
     store.loadMany(type, docs.map(function(record) {
       record.id = record._id;
       record.rev = record._rev;
@@ -46,6 +47,8 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     this.ajax(id, 'GET', {
       context: this,
       success: function(data) {
+        data.id = data._id;
+        data.rev = data._rev;
         store.load(type, data);
       }
     });

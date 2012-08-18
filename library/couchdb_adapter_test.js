@@ -90,6 +90,16 @@ test("finding a person makes a GET to /DB_NAME/:id", function() {
 
   expectState('loaded', false);
   expectUrl('/DB_NAME/1');
+
+  ajaxHash.success({
+    _id: 1,
+    _rev: 'abc',
+    name: 'Hansi Hinterseer'
+  });
+
+  equal(person.get('id'), 1);
+  equal(person.get('rev'), 'abc');
+  equal(person.get('name'), 'Hansi Hinterseer');
 });
 
 test("creating a person makes a POST to /DB_NAME with data hash", function() {
