@@ -64,6 +64,7 @@ module("CouchDBAdapter", {
       name: DS.attr('string'),
       rev: DS.attr('string')
     });
+    Person.toString = function() { return 'Person'; };
   },
 
   teardown: function() {
@@ -78,6 +79,10 @@ test("is defined", function() {
 
 test("is a subclass of DS.Adapter", function() {
   ok(DS.Adapter.detect(DS.CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
+});
+
+test("stringForType by default returns the value of toString", function() {
+  equal(adapter.stringForType(Person), 'Person');
 });
 
 test("finding a person makes a GET to /DB_NAME/:id", function() {

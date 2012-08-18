@@ -3,10 +3,17 @@ CouchDBModel = Ember.Mixin.create({
 });
 
 DS.CouchDBAdapter = DS.Adapter.extend({
+  typeAttribute: 'ember_type',
+
   _ajax: Ember.K,
+
   ajax: function(url, type, hash) {
     var db = this.get('db');
     return this._ajax('/%@/%@'.fmt(db, url), type, hash);
+  },
+
+  stringForType: function(type) {
+    return type.toString();
   },
 
   find: function(store, type, id) {
@@ -40,6 +47,8 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   createRecord: function(store, type, record) {
     var json = record.toJSON();
+    var typeAttribute = this.get('typeAttribute');
+    json[typeAttribute] = this.stringForType(type);
     delete json.rev;
     this.ajax('', 'POST', {
       data: json,
