@@ -1,7 +1,7 @@
 CouchDBAdapter for ember data
 =============================
 
-CouchDBAdapter for [Ember Data](https://github.com/emberjs/data). This adapter communicates with a CouchDB backend as specified in http://wiki.apache.org/couchdb/HTTP_Document_API. It currently offers support for the basic operations to create, update and delete a record. `findMany` and `findAll` are also implemented. So the latter can work, you need to add a view named `by-ember-type` in your design document. The views' `map` function should look like this:
+CouchDBAdapter for [Ember Data](https://github.com/emberjs/data). This adapter communicates with a CouchDB backend as specified in http://wiki.apache.org/couchdb/HTTP_Document_API. It currently offers support for the basic operations to create, update and delete a record. `find` and `findMany` are also implemented out of the box. To make `findAll` working, you need to add a view named `by-ember-type` in your design document, which' `map` function should look like this:
 
 ``` javascript
 function(doc) {
@@ -27,13 +27,15 @@ Now you're setup to use the CouchDBAdapter in your Ember.js application:
 App = Ember.Application.create();
 App.Store = DS.Store.create({
   adapter: DS.CouchDBAdapter.create({
-    db: 'db-name'
+    db: 'db-name',
+    designDoc: 'app'
   }),
   revision: 4
 });
 ```
 
-You have to specify the name of the database with the `db` property.
+You have to specify the name of the database with the `db` property - and if you want to use `findAll`, you'll have to set the name of the design document with the `designDoc` property.
+
 
 Get started
 -----------
