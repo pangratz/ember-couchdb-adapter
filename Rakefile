@@ -1,7 +1,8 @@
-APPNAME = 'ember_couchdb_adapter'
+APPNAME = 'ember-couchdb-adapter'
 
 require 'colored'
 require 'rake-pipeline'
+require 'github_downloads'
 
 desc "Run tests with PhantomJS"
 task :test do
@@ -28,49 +29,12 @@ task :autotest do
   system("kicker -e 'rake test' library")
 end
 
-def setup_uploader(root=Dir.pwd)
-  require './lib/github_uploader'
-
-  login = origin = nil
-
-  Dir.chdir(root) do
-    # get the github user name
-    login = `git config github.user`.chomp
-
-    # get repo from git config's origin url
-    origin = `git config remote.origin.url`.chomp # url to origin
-    # extract USERNAME/REPO_NAME
-    # sample urls: https://github.com/emberjs/ember.js.git
-    #              git://github.com/emberjs/ember.js.git
-    #              git@github.com:emberjs/ember.js.git
-    #              git@github.com:emberjs/ember.js
-  end
-
-  repoUrl = origin.match(/github\.com[\/:]((.+?)\/(.+?))(\.git)?$/)
-  username = repoUrl[2] # username part of origin url
-  repo = repoUrl[3] # repository name part of origin url
-
-  token = ENV["GH_OAUTH_TOKEN"]
-  uploader = GithubUploader.new(login, username, repo, token)
-  uploader.authorize
-
-  uploader
-end
-
-def upload_file(uploader, filename, description, file)
-  print "Uploading #{filename}..."
-  if uploader.upload_file(filename, description, file)
-    puts "Success"
-  else
-    puts "Failure"
-  end
-end
-
 desc "Upload latest build of #{APPNAME} to GitHub repository"
 task :upload_latest do
-  uploader = setup_uploader
+  uploader = GithubDownloads::Uploader.new
+  uploader.authorize
 
-  upload_file(uploader, "#{APPNAME}-latest.js", "#{APPNAME} Master", "app/lib/#{APPNAME}.js")
+  uploader.upload_file("#{APPNAME}-latest.js", "#{APPNAME} Master", "library/couchdb_adapter.js")
 end
 
 namespace :upgrade do

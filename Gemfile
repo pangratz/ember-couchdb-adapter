@@ -2,6 +2,8 @@ source :rubygems
 
 gem 'colored'
 
+gem "github_downloads", :git => "https://github.com/pangratz/github_downloads.git"
+
 gem 'guard'
 gem 'guard-rake'
 
@@ -10,9 +12,7 @@ gem 'rack-rewrite'
 # gem 'rack-streaming-proxy'
 
 gem "json"
-gem "nokogiri"
-gem "rest-client"
-gem "github_api"
+gem 'multi_json'
 
 gem 'kicker'
 
