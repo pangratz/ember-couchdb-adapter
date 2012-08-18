@@ -4,6 +4,7 @@ CouchDBModel = Ember.Mixin.create({
 
 DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
+  typeViewName: 'by-ember-type',
 
   _ajax: Ember.K,
 
@@ -47,7 +48,17 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     }
   },
 
-  findAll: Ember.K,
+  findAll: function(store, type) {
+    var designDoc = this.get('designDoc');
+    var typeViewName = this.get('typeViewName');
+    var typeString = this.stringForType(type);
+    this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
+      context: this,
+      success: function(data) {
+        store.loadMany(type, data.rows.getEach('doc'));
+      }
+    });
+  },
 
   createRecord: function(store, type, record) {
     var json = record.toJSON();

@@ -210,6 +210,26 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
   equal(store.find(Person, 2).get('name'), 'second');
 });
 
+test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
+  var allPersons = store.findAll(Person);
+
+  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/by-ember-type?include_docs=true&key="Person"');
+  expectType('GET');
+  equal(allPersons.get('length'), 0);
+
+  ajaxHash.success({
+    rows: [
+      { doc: { id: 1, rev: 'a', name: 'first' } },
+      { doc: { id: 2, rev: 'b', name: 'second' } },
+      { doc: { id: 3, rev: 'c', name: 'third' } }
+    ]
+  });
+
+  equal(allPersons.get('length'), 3);
+  equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 3).get('name'), 'third');
+});
+
 test("a view is requested via findQuery of type 'view'", function() {
   var persons = store.findQuery(Person, {
     type: 'view',
