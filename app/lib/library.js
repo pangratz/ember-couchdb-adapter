@@ -1,1 +1,0 @@
-CouchDBAdapter = Ember.Object.extend();

@@ -9,9 +9,11 @@
 <body>
   <div id="qunit"></div>
   <div id="qunit-fixture">test markup</div>
-  <script src="../assets/loader.js"></script>
-  <script src="../assets/app.js"></script>
-  <script src="../assets/app-tests.js"></script>
+  <script src="../library/vendor/jquery.js" charset="utf-8"></script>
+  <script src="../library/vendor/handlebars.js" charset="utf-8"></script>
+  <script src="../library/vendor/ember.js" charset="utf-8"></script>
+  <script src="../library/vendor/ember-data.js" charset="utf-8"></script>
+  <script src="../library/couchdb_adapter.js" charset="utf-8"></script>
   <script>
     (function(QUnit) {
       // Hack QUnit to not suck for Ember objects
@@ -27,18 +29,8 @@
       QUnit.jsDump.setParser('emberObject', function(obj) {
         return obj.toString();
       });
-
-      var matcher = /^tests\//, modules = loader.modules;
-      for (var name in modules) {
-        if (modules.hasOwnProperty(name)) {
-          if (matcher.test(name)) {
-            loader.require(name);
-          }
-        }
-      }
-
-      loader.require('tests/core');
     })(QUnit);
   </script>
+  <script src="../library/couchdb_adapter_test.js" charset="utf-8"></script>
 </body>
 </html>
