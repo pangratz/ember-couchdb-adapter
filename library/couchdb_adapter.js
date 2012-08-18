@@ -19,7 +19,15 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     });
   },
 
-  findMany: Ember.K,
+  findMany: function(store, type, ids) {
+    this.ajax('_all_docs?include_docs=true', 'POST', {
+      data: { keys: ids },
+      context: this,
+      success: function(data) {
+        store.loadMany(type, data.rows.getEach('doc'));
+      }
+    });
+  },
 
   findQuery: function(store, type, query, modelArray) {
     var designDoc = this.get('designDoc');

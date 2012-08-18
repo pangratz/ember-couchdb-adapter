@@ -182,6 +182,27 @@ test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
   expectState('deleted');
 });
 
+test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function() {
+  var persons = store.findMany(Person, [1, 2]);
+
+  expectUrl('/DB_NAME/_all_docs?include_docs=true');
+  expectType('POST');
+  expectData({
+    keys: [1, 2]
+  });
+
+  ajaxHash.success({
+    rows: [{
+      doc: { id: 1, rev: 'abc', name: 'first'}
+    }, {
+      doc: { id: 2, rev: 'def', name: 'second'}
+    }]
+  });
+
+  equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 2).get('name'), 'second');
+});
+
 test("a view is requested via findQuery of type 'view'", function() {
   var persons = store.findQuery(Person, {
     type: 'view',
