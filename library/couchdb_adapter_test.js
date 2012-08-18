@@ -182,36 +182,6 @@ test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
   expectState('deleted');
 });
 
-test("bulkCommit=true makes a POST to /DB_NAME/_bulk_docs", function() {
-  person = store.createRecord(Person, {
-    name: 'Tobias Fünke'
-  });
-
-  adapter.set('bulkCommit', true);
-
-  expectState('new');
-  store.commit();
-  expectState('saving');
-
-  expectUrl('/db/_bulk_docs', 'the database name');
-  expectType('POST');
-  expectData({
-    docs: [{
-      name: "Tobias Fünke"
-    }]
-  }
-  );
-
-  ajaxHash.success([{
-    "id": 'abc',
-    "rev": '1-abc',
-  }]);
-  expectState('saving', false);
-
-  equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
-  equal(get(person, '_rev'), '1-abc', "the revision is stored on the data");
-});
-
 test("a view is requested via findQuery of type 'view'", function() {
   var persons = store.findQuery(Person, {
     type: 'view',
