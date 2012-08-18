@@ -23,7 +23,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
-      data: {},
       context: this,
       success: function(data) {
         store.load(type, data);
