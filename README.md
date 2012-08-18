@@ -15,7 +15,7 @@ Because CouchDB expects the revision of a document to be submitted on every upda
 
 ``` javascript
 App.MyModel = DS.Model(CouchDBModel, {
-  name: DS.attr('string)
+  name: DS.attr('string')
 });
 ```
 
