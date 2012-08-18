@@ -13,9 +13,11 @@ where the `ember_type` property represents the type of entity for the specific d
 
 Because CouchDB expects the revision of a document to be submitted on every update of a document, it needs to be specified on every model. There is a mixin `CouchDBModel` for that:
 
-    App.MyModel = DS.Model(CouchDBModel, {
-      name: DS.attr('string)
-    });
+``` javascript
+App.MyModel = DS.Model(CouchDBModel, {
+  name: DS.attr('string)
+});
+```
 
 This will add a property `rev` of type `string` to the `App.MyModel` definition.
 
