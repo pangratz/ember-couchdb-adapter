@@ -21,6 +21,15 @@ App.MyModel = DS.Model(CouchDBModel, {
 
 This will add a property `rev` of type `string` to the `App.MyModel` definition.
 
+Now you're setup to use the CouchDBAdapter in your Ember.js application:
+
+``` javascript
+App = Ember.Application.create();
+App.Store = DS.Store.create({
+  adapter: DS.CouchDBAdapter.create(),
+  revision: 4
+});
+```
 
 Get started
 -----------
