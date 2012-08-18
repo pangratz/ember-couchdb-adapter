@@ -6,7 +6,19 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
 
-  _ajax: Ember.K,
+  _ajax: function(url, type, hash) {
+    hash.url = url;
+    hash.type = type;
+    hash.dataType = 'json';
+    hash.contentType = 'application/json; charset=utf-8';
+    hash.context = this;
+
+    if (hash.data && type !== 'GET') {
+      hash.data = JSON.stringify(hash.data);
+    }
+
+    Ember.$.ajax(hash);
+  },
 
   ajax: function(url, type, hash) {
     var db = this.get('db');
