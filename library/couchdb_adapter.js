@@ -30,6 +30,59 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   findAll: Ember.K,
 
+  commit: function(store, commitDetails) {
+    if (!this.get('bulkCommit')) {
+      return this._super(store, commitDetails);
+    }
+
+    var responseCallbacks = [];
+    var data = [];
+    commitDetails.created.eachType(function(type, array) {
+      data.pushObjects(array.map(function(record) {
+        responseCallbacks.pushObject(function(response) {
+          store.didCreateRecord(record, $.extend(json, response));
+        });
+        var json = record.toJSON();
+        delete json.rev;
+        return json;
+      }));
+    });
+    commitDetails.updated.eachType(function(type, array) {
+      data.pushObjects(array.map(function(record) {
+        responseCallbacks.pushObject(function(response) {
+          store.didUpdateRecord(record, $.extend(json, response));
+        });
+        var json = record.toJSON();
+        json._id = json.id;
+        json._rev = json.rev;
+        delete json.id;
+        delete json.rev;
+        return json;
+      }));
+    });
+    commitDetails.deleted.eachType(function(type, array) {
+      data.pushObjects(array.map(function(record) {
+        responseCallbacks.pushObject(function(response) {
+          store.didDeleteRecord(record);
+        });
+        return {
+          _id: record.get('id'),
+          _rev: record.get('rev'),
+          _deleted: true
+        };
+      }));
+    });
+    this.ajax('_bulk_docs', 'POST', {
+      data: { docs: data },
+      context: this,
+      success: function(response) {
+        responseCallbacks.forEach(function(callback, index) {
+          callback(response[index]);
+        });
+      }
+    });
+  },
+
   createRecord: function(store, type, record) {
     var json = record.toJSON();
     delete json.rev;

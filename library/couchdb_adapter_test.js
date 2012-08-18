@@ -12,6 +12,8 @@ var ajaxHash;
 var person;
 var Person;
 
+var createdPerson, updatedPerson, deletedPerson;
+
 var expectUrl = function(url, desc) {
   equal(ajaxUrl, url, "the URL is " + desc);
 };
@@ -183,33 +185,78 @@ test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
 });
 
 test("bulkCommit=true makes a POST to /DB_NAME/_bulk_docs", function() {
-  person = store.createRecord(Person, {
-    name: 'Tobias Fünke'
+  createdPerson = store.createRecord(Person, {
+    name: 'created person'
   });
+  store.load(Person, {
+    id: 'updatedId',
+    rev: 'updatedRev',
+    name: 'person name'
+  });
+  store.load(Person, {
+    id: 'deletedId',
+    rev: 'deletedRev',
+    name: 'deleted person'
+  });
+
+  updatedPerson = store.find(Person, 'updatedId');
+  deletedPerson = store.find(Person, 'deletedId');
+
+  updatedPerson.set('name', 'updated name');
+  deletedPerson.deleteRecord();
+
+  expectState('new', true, createdPerson);
+  expectState('dirty', true, updatedPerson);
+  expectState('deleted', true, deletedPerson);
 
   adapter.set('bulkCommit', true);
 
-  expectState('new');
   store.commit();
-  expectState('saving');
 
-  expectUrl('/db/_bulk_docs', 'the database name');
+  expectState('saving', true, createdPerson);
+  expectState('saving', true, updatedPerson);
+  expectState('saving', true, deletedPerson);
+
+  expectUrl('/DB_NAME/_bulk_docs', 'the database name');
   expectType('POST');
   expectData({
     docs: [{
-      name: "Tobias Fünke"
+      name: "created person"
+    }, {
+      _id: 'updatedId',
+      _rev: 'updatedRev',
+      name: 'updated name'
+    }, {
+      _id: 'deletedId',
+      _rev: 'deletedRev',
+      _deleted: true
     }]
   }
   );
 
   ajaxHash.success([{
     "id": 'abc',
-    "rev": '1-abc',
+    "rev": '1-abc'
+  }, {
+    "id": 'updatedId',
+    "rev": 'updatedRev2'
+  }, {
+    ok: true,
+    "rev": 'deletedRev2'
   }]);
-  expectState('saving', false);
 
-  equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
-  equal(get(person, '_rev'), '1-abc', "the revision is stored on the data");
+  expectState('saving', false, createdPerson);
+  expectState('saving', false, updatedPerson);
+  expectState('saving', false, deletedPerson);
+
+  equal(createdPerson, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
+  equal(get(createdPerson, 'rev'), '1-abc', "the revision is stored on the data");
+
+  equal(updatedPerson, store.find(Person, 'updatedId'));
+  equal(get(updatedPerson, 'rev'), 'updatedRev2');
+  equal(get(updatedPerson, 'name'), 'updated name');
+
+  expectState('deleted', true, deletedPerson);
 });
 
 test("a view is requested via findQuery of type 'view'", function() {
