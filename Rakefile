@@ -3,18 +3,8 @@ APPNAME = 'ember_couchdb_adapter'
 require 'colored'
 require 'rake-pipeline'
 
-desc "Build #{APPNAME}"
-task :build do
-  Rake::Pipeline::Project.new('Assetfile').invoke
-end
-
-desc "Clean #{APPNAME}"
-task :clean do
-  Rake::Pipeline::Project.new('Assetfile').clean
-end
-
 desc "Run tests with PhantomJS"
-task :test => :build do
+task :test do
   unless system("which phantomjs > /dev/null 2>&1")
     abort "PhantomJS is not installed. Download from http://phantomjs.org/"
   end
@@ -29,12 +19,13 @@ task :test => :build do
     puts "Tests Passed".green
   else
     puts "Tests Failed".red
+    exit(-1)
   end
 end
 
 desc "Automatically run tests (Mac OS X only)"
 task :autotest do
-  system("kicker -e 'rake test' app")
+  system("kicker -e 'rake test' library")
 end
 
 def setup_uploader(root=Dir.pwd)
