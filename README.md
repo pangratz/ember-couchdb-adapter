@@ -38,7 +38,7 @@ Run the tests
 
 or
 
-    $ bundle exec rackup && open http://localhost:9292/tests/index.html
+    $ open http://localhost:9292/tests/index.html && bundle exec rackup
 
 or
 
