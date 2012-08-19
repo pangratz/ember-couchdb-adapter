@@ -234,12 +234,66 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
   equal(store.find(Person, 2).get('data.rev'), 'def');
 });
 
-test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
+test("findAll makes a GET to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
   var allPersons = store.findAll(Person);
 
   expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/by-ember-type?include_docs=true&key="Person"');
   expectType('GET');
   equal(allPersons.get('length'), 0);
+
+  ajaxHash.success({
+    rows: [
+      { doc: { _id: 1, _rev: 'a', name: 'first' } },
+      { doc: { _id: 2, _rev: 'b', name: 'second' } },
+      { doc: { _id: 3, _rev: 'c', name: 'third' } }
+    ]
+  });
+
+  equal(allPersons.get('length'), 3);
+
+  equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 1).get('data.rev'), 'a');
+
+  equal(store.find(Person, 2).get('name'), 'second');
+  equal(store.find(Person, 2).get('data.rev'), 'b');
+
+  equal(store.find(Person, 3).get('name'), 'third');
+  equal(store.find(Person, 3).get('data.rev'), 'c');
+});
+
+test("findAll calls viewForType if useCustomTypeLookup is set to true", function() {
+  expect(2);
+
+  adapter.set('customTypeLookup', true);
+  adapter.reopen({
+    viewForType: function(type, viewParams) {
+      equal(type, Person);
+      ok(viewParams);
+    }
+  });
+
+  store.findAll(Person);
+});
+
+test("findAll does a GET to view name returned by viewForType if useCustomTypeLookup is set to true", function() {
+  adapter.set('customTypeLookup', true);
+  adapter.reopen({
+    viewForType: function(type, viewParams) {
+      equal(typeof viewParams, 'object', 'viewParams is an object');
+      viewParams.key = "myPersonKey";
+      viewParams.include_docs = false;
+      return 'myPersonView';
+    }
+  });
+
+  var allPersons = store.findAll(Person);
+
+  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/myPersonView');
+  expectType('GET');
+  expectData({
+    key: 'myPersonKey',
+    include_docs: true // include_docs is overridden
+  });
 
   ajaxHash.success({
     rows: [

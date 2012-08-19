@@ -1,6 +1,7 @@
 DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
+  customTypeLookup: false,
 
   _ajax: function(url, type, hash) {
     hash.url = url;
@@ -69,14 +70,27 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   findAll: function(store, type) {
     var designDoc = this.get('designDoc');
-    var typeViewName = this.get('typeViewName');
-    var typeString = this.stringForType(type);
-    this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
-      context: this,
-      success: function(data) {
-        this._loadMany(store, type, data.rows.getEach('doc'));
-      }
-    });
+    if (this.get('customTypeLookup') === true && this.viewForType) {
+      var params = {};
+      var viewName = this.viewForType(type, params);
+      params.include_docs = true;
+      this.ajax('_design/%@/_view/%@'.fmt(designDoc, viewName), 'GET', {
+        data: params,
+        context: this,
+        success: function(data) {
+          this._loadMany(store, type, data.rows.getEach('doc'));
+        }
+      });
+    } else {
+      var typeViewName = this.get('typeViewName');
+      var typeString = this.stringForType(type);
+      this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
+        context: this,
+        success: function(data) {
+          this._loadMany(store, type, data.rows.getEach('doc'));
+        }
+      });
+    }
   },
 
   createRecord: function(store, type, record) {
