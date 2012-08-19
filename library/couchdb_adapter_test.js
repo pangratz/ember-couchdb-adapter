@@ -61,8 +61,7 @@ module("CouchDBAdapter", {
     });
 
     Person = DS.Model.extend({
-      name: DS.attr('string'),
-      rev: DS.attr('string')
+      name: DS.attr('string')
     });
     Person.toString = function() { return 'Person'; };
   },
@@ -98,7 +97,7 @@ test("finding a person makes a GET to /DB_NAME/:id", function() {
   });
 
   equal(person.get('id'), 1);
-  equal(person.get('rev'), 'abc');
+  equal(person.get('data.rev'), 'abc');
   equal(person.get('name'), 'Hansi Hinterseer');
 });
 
@@ -126,7 +125,7 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
   expectState('saving', false);
 
   equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
-  equal(get(person, 'rev'), '1-abc', "the revision is stored on the data");
+  equal(get(person, 'data.rev'), '1-abc', "the revision is stored on the data");
 });
 
 test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() {
@@ -166,7 +165,7 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
 
   equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
-  equal(get(person, 'rev'), '2-def', "the revision is updated");
+  equal(get(person, 'data.rev'), '2-def', "the revision is updated");
 });
 
 test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
@@ -217,10 +216,10 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
   });
 
   equal(store.find(Person, 1).get('name'), 'first');
-  equal(store.find(Person, 1).get('rev'), 'abc');
+  equal(store.find(Person, 1).get('data.rev'), 'abc');
 
   equal(store.find(Person, 2).get('name'), 'second');
-  equal(store.find(Person, 2).get('rev'), 'def');
+  equal(store.find(Person, 2).get('data.rev'), 'def');
 });
 
 test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
@@ -241,10 +240,13 @@ test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", 
   equal(allPersons.get('length'), 3);
 
   equal(store.find(Person, 1).get('name'), 'first');
-  equal(store.find(Person, 1).get('rev'), 'a');
+  equal(store.find(Person, 1).get('data.rev'), 'a');
+
+  equal(store.find(Person, 2).get('name'), 'second');
+  equal(store.find(Person, 2).get('data.rev'), 'b');
 
   equal(store.find(Person, 3).get('name'), 'third');
-  equal(store.find(Person, 3).get('rev'), 'c');
+  equal(store.find(Person, 3).get('data.rev'), 'c');
 });
 
 test("a view is requested via findQuery of type 'view'", function() {
@@ -255,20 +257,4 @@ test("a view is requested via findQuery of type 'view'", function() {
 
   expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
   expectType('GET');
-});
-
-
-module("CouchDBModel");
-
-test("is defined", function() {
-  ok(CouchDBModel);
-});
-
-test("adds 'rev' property", function() {
-  var MyModel = DS.Model.extend(CouchDBModel);
-  var attrs = Ember.get(MyModel, 'attributes');
-
-  var revAttr = attrs.get('rev');
-  equal(revAttr.type, 'string');
-  equal(revAttr.key(MyModel), 'rev');
 });

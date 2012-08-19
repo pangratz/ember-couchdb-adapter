@@ -1,7 +1,3 @@
-CouchDBModel = Ember.Mixin.create({
-  rev: DS.attr('string')
-});
-
 DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
@@ -100,7 +96,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     var json = record.toJSON();
     this.addTypeProperty(json, type);
     json._id = json.id;
-    json._rev = json.rev;
+    json._rev = record.get('data.rev');
     delete json.id;
     delete json.rev;
     this.ajax(json._id, 'PUT', {
@@ -113,7 +109,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   deleteRecord: function(store, type, record) {
-    this.ajax(record.get('id') + '?rev=' + record.get('rev'), 'DELETE', {
+    this.ajax(record.get('id') + '?rev=' + record.get('data.rev'), 'DELETE', {
       context: this,
       success: function(data) {
         store.didDeleteRecord(record);
