@@ -72,6 +72,7 @@ module("CouchDBAdapter", {
 
     Article = DS.Model.extend({
       label: DS.attr('string'),
+      writer: DS.belongsTo(Person),
       tags: DS.hasMany(Tag)
     });
     Article.toString = function() { return 'Article'; };
@@ -298,6 +299,7 @@ test("hasMany relationship dirties parent if child is added", function() {
     "_rev": "a1rev",
     ember_type: 'Article',
     label: "article",
+    writer_id: null,
     tags: ['t1', 't2']
   });
 
@@ -338,6 +340,7 @@ test("hasMany relationship dirties parent if child is removed", function() {
     "_rev": "a1rev",
     ember_type: 'Article',
     label: "article",
+    writer_id: null,
     tags: ['t1']
   });
 
@@ -351,7 +354,7 @@ test("hasMany relationship dirties parent if child is removed", function() {
   equal(article.get('data.rev'), 'a2rev2');
 });
 
-test("hasMany relationshipd dirties child if child is updated", function() {
+test("hasMany relationship dirties child if child is updated", function() {
   store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
   store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1']});
 
@@ -384,4 +387,79 @@ test("hasMany relationshipd dirties child if child is updated", function() {
 
   expectState('dirty', false, tag);
   equal(tag.get('data.rev'), 't1rev2');  
+});
+
+test("belongsTo relationship dirties if item is deleted", function() {
+  store.load(Person, {id: 'p1', rev: 'p1rev', name: 'author'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', writer: 'p1'});
+
+  var article = store.find(Article, 'a1');
+  var person = store.find(Person, 'p1');
+  ok(article);
+  ok(person);
+  expectState('dirty', false, article);
+
+  article.set('writer', null);
+
+  expectState('dirty', false, person);
+  expectState('dirty', true, article);
+
+  store.commit();
+
+  expectUrl('/DB_NAME/a1');
+  expectType('PUT');
+  expectData({
+    "_id": "a1",
+    "_rev": "a1rev",
+    ember_type: 'Article',
+    writer_id: null,
+    tags: [],
+    label: "article"
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 'a1',
+    rev: 'a1rev2'
+  });
+
+  expectState('dirty', false, article);
+  equal(article.get('data.rev'), 'a1rev2');  
+});
+
+test("belongsTo relationship dirties item if item is updted", function() {
+  store.load(Person, {id: 'p1', rev: 'p1rev', name: 'author'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', writer: 'p1'});
+
+  var article = store.find(Article, 'a1');
+  var person = store.find(Person, 'p1');
+  ok(article);
+  ok(person);
+  expectState('dirty', false, article);
+  expectState('dirty', false, person);
+
+  person.set('name', 'updated writer');
+
+  expectState('dirty', true, person);
+  expectState('dirty', false, article);
+
+  store.commit();
+
+  expectUrl('/DB_NAME/p1');
+  expectType('PUT');
+  expectData({
+    "_id": "p1",
+    "_rev": "p1rev",
+    ember_type: 'Person',
+    name: "updated writer"
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 'p1',
+    rev: 'p1rev2'
+  });
+
+  expectState('dirty', false, person);
+  equal(person.get('data.rev'), 'p1rev2');  
 });
