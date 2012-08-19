@@ -82,7 +82,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   createRecord: function(store, type, record) {
     var json = record.toJSON();
     this.addTypeProperty(json, type);
-    delete json.rev;
     this.ajax('', 'POST', {
       data: json,
       context: this,
@@ -98,7 +97,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     json._id = json.id;
     json._rev = record.get('data.rev');
     delete json.id;
-    delete json.rev;
     this.ajax(json._id, 'PUT', {
       data: json,
       context: this,
