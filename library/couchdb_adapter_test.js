@@ -10,7 +10,7 @@ var ajaxType;
 var ajaxHash;
 
 var person;
-var Person;
+var Person, Article, Tag;
 
 var expectUrl = function(url, desc) {
   equal(ajaxUrl, url, "the URL is " + desc);
@@ -32,7 +32,7 @@ var expectState = function(state, value, p) {
   }
 
   var flag = "is" + state.charAt(0).toUpperCase() + state.substr(1);
-  equal(get(p, flag), value, "the person is " + (value === false ? "not ": "") + state);
+  equal(get(p, flag), value, "the state is " + (value === false ? "not ": "") + state);
 };
 
 module("CouchDBAdapter", {
@@ -64,6 +64,17 @@ module("CouchDBAdapter", {
       name: DS.attr('string')
     });
     Person.toString = function() { return 'Person'; };
+
+    Tag = DS.Model.extend({
+      label: DS.attr('string')
+    });
+    Tag.toString = function() { return 'Tag'; };
+
+    Article = DS.Model.extend({
+      label: DS.attr('string'),
+      tags: DS.hasMany(Tag)
+    });
+    Article.toString = function() { return 'Article'; };
   },
 
   teardown: function() {
@@ -257,4 +268,120 @@ test("a view is requested via findQuery of type 'view'", function() {
 
   expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
   expectType('GET');
+});
+
+test("hasMany relationship dirties parent if child is added", function() {
+  store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
+  store.load(Tag, {id: 't2', rev: 't2rev', label: 'tag 2'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1']});
+
+  var article = store.find(Article, 'a1');
+  ok(article);
+  equal(article.get('tags.length'), 1);
+  expectState('dirty', false, article);
+
+  var t2 = store.find(Tag, 't2');
+  ok(t2);
+  article.get('tags').pushObject(t2);
+  // FIXME remove
+  article.get('stateManager').goToState('updated');
+
+  equal(article.get('tags.length'), 2);
+  expectState('dirty', true, article);
+
+  store.commit();
+
+  expectUrl('/DB_NAME/a1');
+  expectType('PUT');
+  expectData({
+    "_id": "a1",
+    "_rev": "a1rev",
+    ember_type: 'Article',
+    label: "article",
+    tags: ['t1', 't2']
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 'a1',
+    rev: 'a2rev2'
+  });
+
+  equal(article.get('data.rev'), 'a2rev2');
+});
+
+test("hasMany relationship dirties parent if child is removed", function() {
+  store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
+  store.load(Tag, {id: 't2', rev: 't2rev', label: 'tag 2'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1', 't2']});
+
+  var article = store.find(Article, 'a1');
+  ok(article);
+  equal(article.get('tags.length'), 2);
+  expectState('dirty', false, article);
+
+  var t2 = store.find(Tag, 't2');
+  ok(t2);
+  article.get('tags').removeObject(t2);
+  // FIXME remove
+  article.get('stateManager').goToState('updated');
+
+  equal(article.get('tags.length'), 1);
+  expectState('dirty', true, article);
+
+  store.commit();
+
+  expectUrl('/DB_NAME/a1');
+  expectType('PUT');
+  expectData({
+    "_id": "a1",
+    "_rev": "a1rev",
+    ember_type: 'Article',
+    label: "article",
+    tags: ['t1']
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 'a1',
+    rev: 'a2rev2'
+  });
+
+  expectState('dirty', false, article);
+  equal(article.get('data.rev'), 'a2rev2');
+});
+
+test("hasMany relationshipd dirties child if child is updated", function() {
+  store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1']});
+
+  var article = store.find(Article, 'a1');
+  var tag = store.find(Tag, 't1');
+  ok(tag);
+  expectState('dirty', false, tag);
+
+  tag.set('label', 'tag 1 updated');
+
+  expectState('dirty', false, article);
+  expectState('dirty', true, tag);
+
+  store.commit();
+
+  expectUrl('/DB_NAME/t1');
+  expectType('PUT');
+  expectData({
+    "_id": "t1",
+    "_rev": "t1rev",
+    ember_type: 'Tag',
+    label: "tag 1 updated"
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 't1',
+    rev: 't1rev2'
+  });
+
+  expectState('dirty', false, tag);
+  equal(tag.get('data.rev'), 't1rev2');  
 });

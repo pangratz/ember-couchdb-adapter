@@ -92,7 +92,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   updateRecord: function(store, type, record) {
-    var json = record.toJSON();
+    var json = record.toJSON({associations: true});
     this.addTypeProperty(json, type);
     json._id = json.id;
     json._rev = record.get('data.rev');
