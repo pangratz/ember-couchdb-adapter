@@ -44,9 +44,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     this.ajax(id, 'GET', {
       context: this,
       success: function(data) {
-        data.id = data._id;
-        data.rev = data._rev;
-        store.load(type, data);
+        this._loadMany(store, type, [data]);
       }
     });
   },
