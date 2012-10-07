@@ -1,10 +1,7 @@
-CouchDBModel = Ember.Mixin.create({
-  rev: DS.attr('string')
-});
-
 DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
+  customTypeLookup: false,
 
   _ajax: function(url, type, hash) {
     hash.url = url;
@@ -39,6 +36,8 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     store.loadMany(type, docs.map(function(record) {
       record.id = record._id;
       record.rev = record._rev;
+      delete record._id;
+      delete record._rev;
       return record;
     }));
   },
@@ -47,9 +46,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     this.ajax(id, 'GET', {
       context: this,
       success: function(data) {
-        data.id = data._id;
-        data.rev = data._rev;
-        store.load(type, data);
+        this._loadMany(store, type, [data]);
       }
     });
   },
@@ -67,26 +64,44 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   findQuery: function(store, type, query, modelArray) {
     var designDoc = this.get('designDoc');
     if (query.type === 'view') {
-      this.ajax('_design/%@/_view/%@'.fmt(query.designDoc || designDoc, query.viewName), 'GET', {});
+      this.ajax('_design/%@/_view/%@'.fmt(query.designDoc || designDoc, query.viewName), 'GET', {
+        data: query.options,
+        success: function(data) {
+          this._loadMany(modelArray, type, data);
+        },
+        context: this
+      });
     }
   },
 
   findAll: function(store, type) {
     var designDoc = this.get('designDoc');
-    var typeViewName = this.get('typeViewName');
-    var typeString = this.stringForType(type);
-    this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
-      context: this,
-      success: function(data) {
-        this._loadMany(store, type, data.rows.getEach('doc'));
-      }
-    });
+    if (this.get('customTypeLookup') === true && this.viewForType) {
+      var params = {};
+      var viewName = this.viewForType(type, params);
+      params.include_docs = true;
+      this.ajax('_design/%@/_view/%@'.fmt(designDoc, viewName), 'GET', {
+        data: params,
+        context: this,
+        success: function(data) {
+          this._loadMany(store, type, data.rows.getEach('doc'));
+        }
+      });
+    } else {
+      var typeViewName = this.get('typeViewName');
+      var typeString = this.stringForType(type);
+      this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
+        context: this,
+        success: function(data) {
+          this._loadMany(store, type, data.rows.getEach('doc'));
+        }
+      });
+    }
   },
 
   createRecord: function(store, type, record) {
     var json = record.toJSON();
     this.addTypeProperty(json, type);
-    delete json.rev;
     this.ajax('', 'POST', {
       data: json,
       context: this,
@@ -97,12 +112,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   updateRecord: function(store, type, record) {
-    var json = record.toJSON();
+    var json = record.toJSON({associations: true});
     this.addTypeProperty(json, type);
     json._id = json.id;
-    json._rev = json.rev;
+    json._rev = record.get('data.rev');
     delete json.id;
-    delete json.rev;
     this.ajax(json._id, 'PUT', {
       data: json,
       context: this,
@@ -113,7 +127,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   deleteRecord: function(store, type, record) {
-    this.ajax(record.get('id') + '?rev=' + record.get('rev'), 'DELETE', {
+    this.ajax(record.get('id') + '?rev=' + record.get('data.rev'), 'DELETE', {
       context: this,
       success: function(data) {
         store.didDeleteRecord(record);
