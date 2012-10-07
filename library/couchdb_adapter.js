@@ -1,6 +1,7 @@
 DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
+  customTypeLookup: false,
 
   _ajax: function(url, type, hash) {
     hash.url = url;
@@ -35,6 +36,8 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     store.loadMany(type, docs.map(function(record) {
       record.id = record._id;
       record.rev = record._rev;
+      delete record._id;
+      delete record._rev;
       return record;
     }));
   },
@@ -43,9 +46,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     this.ajax(id, 'GET', {
       context: this,
       success: function(data) {
-        data.id = data._id;
-        data.rev = data._rev;
-        store.load(type, data);
+        this._loadMany(store, type, [data]);
       }
     });
   },
@@ -75,14 +76,27 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   findAll: function(store, type) {
     var designDoc = this.get('designDoc');
-    var typeViewName = this.get('typeViewName');
-    var typeString = this.stringForType(type);
-    this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
-      context: this,
-      success: function(data) {
-        this._loadMany(store, type, data.rows.getEach('doc'));
-      }
-    });
+    if (this.get('customTypeLookup') === true && this.viewForType) {
+      var params = {};
+      var viewName = this.viewForType(type, params);
+      params.include_docs = true;
+      this.ajax('_design/%@/_view/%@'.fmt(designDoc, viewName), 'GET', {
+        data: params,
+        context: this,
+        success: function(data) {
+          this._loadMany(store, type, data.rows.getEach('doc'));
+        }
+      });
+    } else {
+      var typeViewName = this.get('typeViewName');
+      var typeString = this.stringForType(type);
+      this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
+        context: this,
+        success: function(data) {
+          this._loadMany(store, type, data.rows.getEach('doc'));
+        }
+      });
+    }
   },
 
   createRecord: function(store, type, record) {

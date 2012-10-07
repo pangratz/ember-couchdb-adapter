@@ -108,6 +108,8 @@ test("finding a person makes a GET to /DB_NAME/:id", function() {
     name: 'Hansi Hinterseer'
   });
 
+  expectState('loaded', true);
+  expectState('dirty', false);
   equal(person.get('id'), 1);
   equal(person.get('data.rev'), 'abc');
   equal(person.get('name'), 'Hansi Hinterseer');
@@ -135,6 +137,8 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
     rev: "1-abc"
   });
   expectState('saving', false);
+  expectState('loaded', true);
+  expectState('dirty', false);
 
   equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
   equal(get(person, 'data.rev'), '1-abc', "the revision is stored on the data");
@@ -157,7 +161,6 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
 
   expectState('dirty');
   store.commit();
-  expectState('saving');
 
   expectUrl('/DB_NAME/abc', 'the database name with the record ID');
   expectType('PUT');
@@ -173,7 +176,10 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
     id: 'abc',
     rev: '2-def'
   });
+
   expectState('saving', false);
+  expectState('loaded', true);
+  expectState('dirty', false);
 
   equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
@@ -234,12 +240,66 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
   equal(store.find(Person, 2).get('data.rev'), 'def');
 });
 
-test("findAll makes a POST to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
+test("findAll makes a GET to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
   var allPersons = store.findAll(Person);
 
   expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/by-ember-type?include_docs=true&key="Person"');
   expectType('GET');
   equal(allPersons.get('length'), 0);
+
+  ajaxHash.success({
+    rows: [
+      { doc: { _id: 1, _rev: 'a', name: 'first' } },
+      { doc: { _id: 2, _rev: 'b', name: 'second' } },
+      { doc: { _id: 3, _rev: 'c', name: 'third' } }
+    ]
+  });
+
+  equal(allPersons.get('length'), 3);
+
+  equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 1).get('data.rev'), 'a');
+
+  equal(store.find(Person, 2).get('name'), 'second');
+  equal(store.find(Person, 2).get('data.rev'), 'b');
+
+  equal(store.find(Person, 3).get('name'), 'third');
+  equal(store.find(Person, 3).get('data.rev'), 'c');
+});
+
+test("findAll calls viewForType if useCustomTypeLookup is set to true", function() {
+  expect(2);
+
+  adapter.set('customTypeLookup', true);
+  adapter.reopen({
+    viewForType: function(type, viewParams) {
+      equal(type, Person);
+      ok(viewParams);
+    }
+  });
+
+  store.findAll(Person);
+});
+
+test("findAll does a GET to view name returned by viewForType if useCustomTypeLookup is set to true", function() {
+  adapter.set('customTypeLookup', true);
+  adapter.reopen({
+    viewForType: function(type, viewParams) {
+      equal(typeof viewParams, 'object', 'viewParams is an object');
+      viewParams.key = "myPersonKey";
+      viewParams.include_docs = false;
+      return 'myPersonView';
+    }
+  });
+
+  var allPersons = store.findAll(Person);
+
+  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/myPersonView');
+  expectType('GET');
+  expectData({
+    key: 'myPersonKey',
+    include_docs: true // include_docs is overridden
+  });
 
   ajaxHash.success({
     rows: [

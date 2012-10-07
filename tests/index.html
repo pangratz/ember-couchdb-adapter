@@ -15,6 +15,11 @@
   <script src="../library/vendor/ember-data.js" charset="utf-8"></script>
   <script src="../library/couchdb_adapter.js" charset="utf-8"></script>
   <script>
+    ENV = {
+      TESTING: true
+    };
+  </script>
+  <script>
     (function(QUnit) {
       // Hack QUnit to not suck for Ember objects
       var originalTypeOf = QUnit.jsDump.typeOf;
