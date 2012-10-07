@@ -271,6 +271,26 @@ test("a view is requested via findQuery of type 'view'", function() {
   expectType('GET');
 });
 
+test("a view adds the query options as parameters", function() {
+  var persons = store.findQuery(Person, {
+    type: 'view',
+    viewName: 'PERSONS_VIEW',
+    options: {
+      keys: ['a', 'b'],
+      limit: 10,
+      skip: 42
+    }
+  });
+
+  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
+  expectType('GET');
+  expectData({
+    keys: ['a', 'b'],
+    limit: 10,
+    skip: 42
+  });
+});
+
 test("hasMany relationship dirties parent if child is added", function() {
   store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
   store.load(Tag, {id: 't2', rev: 't2rev', label: 'tag 2'});

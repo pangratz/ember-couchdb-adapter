@@ -63,7 +63,13 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   findQuery: function(store, type, query, modelArray) {
     var designDoc = this.get('designDoc');
     if (query.type === 'view') {
-      this.ajax('_design/%@/_view/%@'.fmt(query.designDoc || designDoc, query.viewName), 'GET', {});
+      this.ajax('_design/%@/_view/%@'.fmt(query.designDoc || designDoc, query.viewName), 'GET', {
+        data: query.options,
+        success: function(data) {
+          this._loadMany(modelArray, type, data);
+        },
+        context: this
+      });
     }
   },
 
