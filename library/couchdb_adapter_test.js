@@ -108,6 +108,8 @@ test("finding a person makes a GET to /DB_NAME/:id", function() {
     name: 'Hansi Hinterseer'
   });
 
+  expectState('loaded', true);
+  expectState('dirty', false);
   equal(person.get('id'), 1);
   equal(person.get('data.rev'), 'abc');
   equal(person.get('name'), 'Hansi Hinterseer');
@@ -135,6 +137,8 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
     rev: "1-abc"
   });
   expectState('saving', false);
+  expectState('loaded', true);
+  expectState('dirty', false);
 
   equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
   equal(get(person, 'data.rev'), '1-abc', "the revision is stored on the data");
@@ -157,7 +161,6 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
 
   expectState('dirty');
   store.commit();
-  expectState('saving');
 
   expectUrl('/DB_NAME/abc', 'the database name with the record ID');
   expectType('PUT');
@@ -173,7 +176,10 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
     id: 'abc',
     rev: '2-def'
   });
+
   expectState('saving', false);
+  expectState('loaded', true);
+  expectState('dirty', false);
 
   equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");

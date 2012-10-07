@@ -36,6 +36,8 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     store.loadMany(type, docs.map(function(record) {
       record.id = record._id;
       record.rev = record._rev;
+      delete record._id;
+      delete record._rev;
       return record;
     }));
   },
