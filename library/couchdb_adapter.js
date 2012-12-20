@@ -1,4 +1,8 @@
+DS.CouchDBSerializer = DS.JSONSerializer.extend();
+
 DS.CouchDBAdapter = DS.Adapter.extend({
+  serializer: DS.CouchDBSerializer,
+
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
   customTypeLookup: false,

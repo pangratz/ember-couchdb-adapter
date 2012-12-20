@@ -543,3 +543,22 @@ test("belongsTo relationship dirties item if item is updted", function() {
   expectState('dirty', false, person);
   equal(person.get('data.rev'), 'p1rev2');  
 });
+
+var serializer;
+
+module("DS.CouchDBSerializer", {
+  setup: function() {
+    serializer = DS.CouchDBSerializer.create();
+  },
+  teardown: function() {
+    serializer.destroy();
+  }
+});
+
+test("it exists", function() {
+  ok(DS.CouchDBSerializer !== undefined, "DS.CouchDBSerializer is undefined");
+});
+
+test("it is a subclass of DS.JSONSerializer", function() {
+  ok(DS.JSONSerializer.detect(DS.CouchDBSerializer));
+});
