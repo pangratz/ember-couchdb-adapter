@@ -1,18 +1,33 @@
 DS.CouchDBSerializer = DS.JSONSerializer.extend({
+  typeAttribute: 'ember_type',
+
   materialize: function(record, data) {
     this._super.apply(this, arguments);
     if (data.rev || data._rev) record.materializeAttribute('_rev', data.rev || data._rev);
   },
   serialize: function(record, options) {
     var json = this._super.apply(this, arguments);
+
+    // add revision
     if (options && options.includeId) {
       var rev = record.get('_data.attributes._rev');
       if (rev) json._rev = rev;
     }
+
+    // add type
+    this.addTypeAttribute(json, record);
+
     return json;
+  },
+  stringForType: function(type) {
+    return type.toString();
   },
   addId: function(json, key, id) {
     json._id = id;
+  },
+  addTypeAttribute: function(json, record) {
+    var typeAttribute = this.get('typeAttribute');
+    json[typeAttribute] = this.stringForType(record.constructor);
   },
   addAttribute: function(data, key, value) {
     if (Ember.isNone(value)) return;
@@ -37,7 +52,6 @@ DS.CouchDBSerializer = DS.JSONSerializer.extend({
 DS.CouchDBAdapter = DS.Adapter.extend({
   serializer: DS.CouchDBSerializer,
 
-  typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
   customTypeLookup: false,
 
@@ -55,18 +69,13 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     Ember.$.ajax(hash);
   },
 
+  stringForType: function(type) {
+    return this.get('serializer').stringForType(type);
+  },
+
   ajax: function(url, type, hash) {
     var db = this.get('db');
     return this._ajax('/%@/%@'.fmt(db, url || ''), type, hash);
-  },
-
-  stringForType: function(type) {
-    return type.toString();
-  },
-
-  addTypeProperty: function(json, type) {
-    var typeAttribute = this.get('typeAttribute');
-    json[typeAttribute] = this.stringForType(type);
   },
 
   _loadMany: function(store, type, docs) {
@@ -146,7 +155,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   createRecord: function(store, type, record) {
     var json = this.serialize(record);
-    this.addTypeProperty(json, type);
     this.ajax('', 'POST', {
       data: json,
       context: this,
@@ -158,7 +166,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   updateRecord: function(store, type, record) {
     var json = this.serialize(record, { includeId: true });
-    this.addTypeProperty(json, type);
     this.ajax(record.get('id'), 'PUT', {
       data: json,
       context: this,

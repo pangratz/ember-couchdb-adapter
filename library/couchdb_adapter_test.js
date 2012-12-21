@@ -103,19 +103,6 @@ test("is a subclass of DS.Adapter", function() {
   ok(DS.Adapter.detect(DS.CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
 });
 
-test("stringForType by default returns the value of toString", function() {
-  expect(2);
-  Person.reopenClass({
-    toString: function() {
-      ok(true, "toString has been called");
-      return "blabla";
-    }
-  });
-
-  var stringForType = adapter.stringForType(Person);
-  equal(stringForType, "blabla");
-});
-
 test("finding a record makes a GET to /DB_NAME/:id", function() {
   person = store.find(Person, 1);
 
