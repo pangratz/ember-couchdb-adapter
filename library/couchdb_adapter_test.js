@@ -198,6 +198,16 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
 
   equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
+
+  set(person, 'name', "Dr. Funky");
+  store.commit();
+
+  expectAjaxCall('PUT', '/DB_NAME/abc', {
+    _id: "abc",
+    _rev: "2-def",
+    ember_type: 'Person',
+    name: "Dr. Funky"
+  });
 });
 
 test("deleting a person makes a DELETE to /DB_NAME/:id", function() {

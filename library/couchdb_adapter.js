@@ -163,7 +163,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: json,
       context: this,
       success: function(data) {
-        store.didSaveRecord(record, Ember.$.extend(json, data));
+        // tell store that the record has been updated; also update to the new revision
+        store.didSaveRecord(record, Ember.$.extend({}, json, {
+          id: data.id,
+          rev: data.rev
+        }));
       }
     });
   },
