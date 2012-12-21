@@ -183,14 +183,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   dirtyRecordsForBelongsToChange: Ember.K,
 
   dirtyRecordsForHasManyChange: function(dirtySet, parent) {
-    console.log("dirtyRecordsForHasManyChange", arguments);
     dirtySet.add(parent);
   }
-});
-
-DS.CouchDBAdapter.registerTransform('ignore', {
-  serialize: function() {
-    return undefined;
-  },
-  deserialize: Ember.K
 });
