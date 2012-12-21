@@ -210,6 +210,27 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
   });
 });
 
+test("updating with a conflicting revision", function() {
+  store.load(Person, {
+    id: 'abc',
+    rev: '1-abc',
+    name: 'Tobias Fünke'
+  });
+  person = store.find(Person, 'abc');
+  set(person, 'name', 'Nelly Fünke');
+  store.commit();
+
+  ajaxHash.error.call(ajaxHash.context, {
+    status: 409,
+    responseText: JSON.stringify({
+      error: "conflict",
+      reason: "Document update conflict"
+    })
+  });
+
+  expectState('error');
+});
+
 test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
   store.load(Person, {
     id: 'abc',

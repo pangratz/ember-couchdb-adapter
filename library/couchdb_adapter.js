@@ -168,6 +168,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
           id: data.id,
           rev: data.rev
         }));
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        if (xhr.status === 409) {
+          store.recordWasError(record);
+        }
       }
     });
   },
