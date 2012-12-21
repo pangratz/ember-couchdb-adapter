@@ -9,10 +9,7 @@ DS.CouchDBSerializer = DS.JSONSerializer.extend({
     var json = this._super.apply(this, arguments);
 
     // add revision
-    if (options && options.includeId) {
-      var rev = record.get('_data.attributes._rev');
-      if (rev) json._rev = rev;
-    }
+    this.addRevision(json, record, options);
 
     // add type
     this.addTypeAttribute(json, record);
@@ -24,6 +21,12 @@ DS.CouchDBSerializer = DS.JSONSerializer.extend({
   },
   addId: function(json, key, id) {
     json._id = id;
+  },
+  addRevision: function(json, record, options) {
+    if (options && options.includeId) {
+      var rev = record.get('_data.attributes._rev');
+      if (rev) json._rev = rev;
+    }
   },
   addTypeAttribute: function(json, record) {
     var typeAttribute = this.get('typeAttribute');
