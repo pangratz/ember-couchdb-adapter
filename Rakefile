@@ -38,23 +38,18 @@ task :upload_latest do
 end
 
 namespace :upgrade do
-  def download_ember(repo_name, source = repo_name, target = repo_name)
-    FileUtils.rm_rf "tmp/#{repo_name}"
-    `git clone https://github.com/emberjs/#{repo_name} tmp/#{repo_name}`
-    Dir.chdir("tmp/#{repo_name}") do
-      `bundle install`
-      `rake dist`
-    end
-    FileUtils.copy "tmp/#{repo_name}/dist/#{source}", "library/vendor/#{target}"
-    FileUtils.rm_rf "tmp/#{repo_name}"
-  end
-  
-  task :ember do
-    download_ember("ember.js")
-  end
-
   task :data do
-    download_ember("data", "ember-data.js", "ember-data.js")
+    ref = ENV["REF"] || "master"
+    FileUtils.rm_rf "tmp/data"
+    `git clone https://github.com/emberjs/data tmp/data`
+    Dir.chdir("tmp/data") do
+      `git checkout #{ref}`
+      `bundle install`
+      `bundle exec rake dist`
+    end
+    FileUtils.copy "tmp/data/dist/ember-data.js", "library/vendor/ember-data.js"
+    FileUtils.copy "tmp/data/packages/ember/lib/main.js", "library/vendor/ember.js"
+    FileUtils.rm_rf "tmp/data"
   end
 
   task :qunit do
@@ -68,5 +63,5 @@ namespace :upgrade do
     FileUtils.rm_rf "tmp/qunit"
   end
 
-  task :all => [:ember, :data, :qunit]
+  task :all => [:data, :qunit]
 end

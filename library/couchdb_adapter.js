@@ -1,7 +1,30 @@
+DS.CouchDBSerializer = DS.Serializer.extend({
+  primaryKey: function(type) {
+    return "_id";
+  },
+  extractId: function(type, hash) {
+    return hash._id || hash.id;
+  },
+  materializeFromJSON: function(record, hash) {
+    this._super.apply(this, arguments);
+    record.materializeAttribute("_rev", hash.rev || hash._rev);
+    record.materializeAttribute("_id", hash.id || hash._id);
+  },
+  toJSON: function(record, options) {
+    var json = this._super.apply(this, arguments);
+    var rev = record.get('_data.attributes._rev');
+    if (rev) json._rev = rev;
+    json.ember_type = record.constructor.toString();
+    return json;
+  }
+});
+
 DS.CouchDBAdapter = DS.Adapter.extend({
   typeAttribute: 'ember_type',
   typeViewName: 'by-ember-type',
   customTypeLookup: false,
+
+  serializer: DS.CouchDBSerializer,
 
   _ajax: function(url, type, hash) {
     hash.url = url;
@@ -15,6 +38,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     }
 
     Ember.$.ajax(hash);
+  },
+
+  shouldCommit: function(record, relationships) {
+    console.log("shouldCommit", relationships.byOldParent);
+    return this._super.apply(arguments);
   },
 
   ajax: function(url, type, hash) {
@@ -31,32 +59,24 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     json[typeAttribute] = this.stringForType(type);
   },
 
-  _loadMany: function(store, type, docs) {
-    // CouchDB returns id and revision of a document via _id and _rev, so we need to map it to id and rev
-    store.loadMany(type, docs.map(function(record) {
-      record.id = record._id;
-      record.rev = record._rev;
-      delete record._id;
-      delete record._rev;
-      return record;
-    }));
-  },
-
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
       context: this,
       success: function(data) {
-        this._loadMany(store, type, [data]);
+        store.loadMany(type, [data]);
       }
     });
   },
 
   findMany: function(store, type, ids) {
-    this.ajax('_all_docs?include_docs=true', 'POST', {
-      data: { keys: ids },
+    this.ajax('_all_docs', 'POST', {
+      data: {
+        include_docs: true,
+        keys: ids
+      },
       context: this,
       success: function(data) {
-        this._loadMany(store, type, data.rows.getEach('doc'));
+        store.loadMany(type, data.rows.getEach('doc'));
       }
     });
   },
@@ -67,7 +87,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       this.ajax('_design/%@/_view/%@'.fmt(query.designDoc || designDoc, query.viewName), 'GET', {
         data: query.options,
         success: function(data) {
-          this._loadMany(modelArray, type, data);
+          modelArray.load(data.rows.getEach('doc'));
         },
         context: this
       });
@@ -84,16 +104,20 @@ DS.CouchDBAdapter = DS.Adapter.extend({
         data: params,
         context: this,
         success: function(data) {
-          this._loadMany(store, type, data.rows.getEach('doc'));
+          store.loadMany(type, data.rows.getEach('doc'));
         }
       });
     } else {
       var typeViewName = this.get('typeViewName');
       var typeString = this.stringForType(type);
-      this.ajax('_design/%@/_view/%@?include_docs=true&key="%@"'.fmt(designDoc, typeViewName, typeString), 'GET', {
+      this.ajax('_design/%@/_view/%@'.fmt(designDoc, typeViewName), 'GET', {
         context: this,
+        data: {
+          include_docs: true,
+          key: encodeURI('"' + typeString + '"')
+        },
         success: function(data) {
-          this._loadMany(store, type, data.rows.getEach('doc'));
+          store.loadMany(type, data.rows.getEach('doc'));
         }
       });
     }
@@ -112,22 +136,23 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   updateRecord: function(store, type, record) {
-    var json = record.toJSON({associations: true});
-    this.addTypeProperty(json, type);
-    json._id = json.id;
-    json._rev = record.get('data.rev');
-    delete json.id;
-    this.ajax(json._id, 'PUT', {
+    var json = record.toJSON({associations: true, includeId: true });
+    this.ajax(record.get('id'), 'PUT', {
       data: json,
       context: this,
       success: function(data) {
         store.didUpdateRecord(record, $.extend(json, data));
+      },
+      error: function(xhr, textStatus, errorThrown) {
+        if (xhr.status === 409) {
+          store.recordWasInvalid(record, {});
+        }
       }
     });
   },
 
   deleteRecord: function(store, type, record) {
-    this.ajax(record.get('id') + '?rev=' + record.get('data.rev'), 'DELETE', {
+    this.ajax(record.get('id') + '?rev=' + record.get('_data.attributes._rev'), 'DELETE', {
       context: this,
       success: function(data) {
         store.didDeleteRecord(record);
