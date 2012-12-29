@@ -41,7 +41,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   shouldCommit: function(record, relationships) {
-    console.log("shouldCommit", relationships.byOldParent);
     return this._super.apply(arguments);
   },
 
@@ -130,7 +129,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: json,
       context: this,
       success: function(data) {
-        store.didCreateRecord(record, $.extend(json, data));
+        store.didSaveRecord(record, $.extend(json, data));
       }
     });
   },
@@ -141,7 +140,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: json,
       context: this,
       success: function(data) {
-        store.didUpdateRecord(record, $.extend(json, data));
+        store.didSaveRecord(record, $.extend(json, data));
       },
       error: function(xhr, textStatus, errorThrown) {
         if (xhr.status === 409) {
