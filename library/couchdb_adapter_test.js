@@ -10,7 +10,7 @@ var ajaxType;
 var ajaxHash;
 
 var person;
-var Person, Article, Tag;
+var Person, Article, Comment;
 
 var expectUrl = function(url, desc) {
   equal(ajaxUrl, url, "the URL is " + desc);
@@ -21,7 +21,13 @@ var expectType = function(type) {
 };
 
 var expectData = function(hash) {
-  deepEqual(hash, ajaxHash.data, "the hash was passed along");
+  deepEqual(ajaxHash.data, hash, "the hash was passed along");
+};
+
+var expectAjaxCall = function(type, url, data) {
+  expectType(type);
+  expectUrl(url);
+  if (data) expectData(data);
 };
 
 var expectState = function(state, value, p) {
@@ -35,7 +41,7 @@ var expectState = function(state, value, p) {
   equal(get(p, flag), value, "the state is " + (value === false ? "not ": "") + state);
 };
 
-module("CouchDBAdapter", {
+module("DS.CouchDBAdapter", {
   setup: function() {
     adapter = DS.CouchDBAdapter.create({
       db: 'DB_NAME',
@@ -65,19 +71,24 @@ module("CouchDBAdapter", {
     });
     Person.toString = function() { return 'Person'; };
 
-    Tag = DS.Model.extend({
-      label: DS.attr('string')
+    Comment = DS.Model.extend({
+      text: DS.attr('string')
     });
-    Tag.toString = function() { return 'Tag'; };
+    Comment.toString = function() { return 'Comment'; };
 
     Article = DS.Model.extend({
-      label: DS.attr('string'),
-      writer: DS.belongsTo(Person),
-      tags: DS.hasMany(Tag)
+      label: DS.attr('string')
     });
     Article.toString = function() { return 'Article'; };
-  },
 
+    Person.reopen({
+      articles: DS.hasMany(Article)
+    });
+    Article.reopen({
+      writer: DS.belongsTo(Person, { inverse: 'articles' }),
+      comments: DS.hasMany(Comment, { inverse: 'article' })
+    });
+  },
   teardown: function() {
     adapter.destroy();
     store.destroy();
@@ -92,15 +103,11 @@ test("is a subclass of DS.Adapter", function() {
   ok(DS.Adapter.detect(DS.CouchDBAdapter), "CouchDBAdapter is a subclass of DS.Adapter");
 });
 
-test("stringForType by default returns the value of toString", function() {
-  equal(adapter.stringForType(Person), 'Person');
-});
-
-test("finding a person makes a GET to /DB_NAME/:id", function() {
+test("finding a record makes a GET to /DB_NAME/:id", function() {
   person = store.find(Person, 1);
 
+  expectAjaxCall('GET', '/DB_NAME/1');
   expectState('loaded', false);
-  expectUrl('/DB_NAME/1');
 
   ajaxHash.success({
     _id: 1,
@@ -108,10 +115,10 @@ test("finding a person makes a GET to /DB_NAME/:id", function() {
     name: 'Hansi Hinterseer'
   });
 
-  expectState('loaded', true);
+  expectState('loaded');
   expectState('dirty', false);
+
   equal(person.get('id'), 1);
-  equal(person.get('data.rev'), 'abc');
   equal(person.get('name'), 'Hansi Hinterseer');
 });
 
@@ -124,11 +131,9 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
   store.commit();
   expectState('saving');
 
-  expectUrl('/DB_NAME/', 'the database name');
-  expectType('POST');
-  expectData({
+  expectAjaxCall('POST', '/DB_NAME/', {
     name: "Tobias Fünke",
-    ember_type: 'Person',
+    ember_type: 'Person'
   });
 
   ajaxHash.success({
@@ -140,8 +145,17 @@ test("creating a person makes a POST to /DB_NAME with data hash", function() {
   expectState('loaded', true);
   expectState('dirty', false);
 
-  equal(person, store.find(Person, 'abc'), "it's possible to find the person by the returned ID");
-  equal(get(person, 'data.rev'), '1-abc', "the revision is stored on the data");
+  equal(person.get('name'), "Tobias Fünke");
+
+  set(person, 'name', "Dr. Funky");
+  store.commit();
+
+  expectAjaxCall('PUT', '/DB_NAME/abc', {
+    _id: "abc",
+    _rev: "1-abc",
+    ember_type: 'Person',
+    name: "Dr. Funky"
+  });
 });
 
 test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() {
@@ -162,11 +176,9 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
   expectState('dirty');
   store.commit();
 
-  expectUrl('/DB_NAME/abc', 'the database name with the record ID');
-  expectType('PUT');
-  expectData({
-    "_id": "abc",
-    "_rev": "1-abc",
+  expectAjaxCall('PUT', '/DB_NAME/abc', {
+    _id: "abc",
+    _rev: "1-abc",
     ember_type: 'Person',
     name: "Nelly Fünke"
   });
@@ -181,9 +193,38 @@ test("updating a person makes a PUT to /DB_NAME/:id with data hash", function() 
   expectState('loaded', true);
   expectState('dirty', false);
 
-  equal(person, store.find(Person, 'abc'), "the same person is retrieved by the same ID");
   equal(get(person, 'name'), 'Nelly Fünke', "the data is preserved");
-  equal(get(person, 'data.rev'), '2-def', "the revision is updated");
+
+  set(person, 'name', "Dr. Funky");
+  store.commit();
+
+  expectAjaxCall('PUT', '/DB_NAME/abc', {
+    _id: "abc",
+    _rev: "2-def",
+    ember_type: 'Person',
+    name: "Dr. Funky"
+  });
+});
+
+test("updating with a conflicting revision", function() {
+  store.load(Person, {
+    id: 'abc',
+    rev: '1-abc',
+    name: 'Tobias Fünke'
+  });
+  person = store.find(Person, 'abc');
+  set(person, 'name', 'Nelly Fünke');
+  store.commit();
+
+  ajaxHash.error.call(ajaxHash.context, {
+    status: 409,
+    responseText: JSON.stringify({
+      error: "conflict",
+      reason: "Document update conflict"
+    })
+  });
+
+  expectState('valid', false);
 });
 
 test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
@@ -206,8 +247,7 @@ test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
   store.commit();
   expectState('saving');
 
-  expectUrl("/DB_NAME/abc?rev=1-abc", "the database name with the record ID and rev as parameter");
-  expectType("DELETE");
+  expectAjaxCall('DELETE', "/DB_NAME/abc?rev=1-abc");
 
   ajaxHash.success({
     ok: true,
@@ -217,12 +257,11 @@ test("deleting a person makes a DELETE to /DB_NAME/:id", function() {
 });
 
 test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function() {
-  var persons = store.findMany(Person, [1, 2]);
+  var persons = store.findMany(Person, ['1', '2']);
 
-  expectUrl('/DB_NAME/_all_docs?include_docs=true');
-  expectType('POST');
-  expectData({
-    keys: [1, 2]
+  expectAjaxCall('POST', '/DB_NAME/_all_docs', {
+    include_docs: true,
+    keys: ['1', '2']
   });
 
   ajaxHash.success({
@@ -234,17 +273,16 @@ test("findMany makes a POST to /DB_NAME/_all_docs?include_docs=true", function()
   });
 
   equal(store.find(Person, 1).get('name'), 'first');
-  equal(store.find(Person, 1).get('data.rev'), 'abc');
-
   equal(store.find(Person, 2).get('name'), 'second');
-  equal(store.find(Person, 2).get('data.rev'), 'def');
 });
 
 test("findAll makes a GET to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", function() {
   var allPersons = store.findAll(Person);
 
-  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/by-ember-type?include_docs=true&key="Person"');
-  expectType('GET');
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/by-ember-type', {
+    include_docs: true,
+    key: '%22Person%22'
+  });
   equal(allPersons.get('length'), 0);
 
   ajaxHash.success({
@@ -258,13 +296,8 @@ test("findAll makes a GET to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", f
   equal(allPersons.get('length'), 3);
 
   equal(store.find(Person, 1).get('name'), 'first');
-  equal(store.find(Person, 1).get('data.rev'), 'a');
-
   equal(store.find(Person, 2).get('name'), 'second');
-  equal(store.find(Person, 2).get('data.rev'), 'b');
-
   equal(store.find(Person, 3).get('name'), 'third');
-  equal(store.find(Person, 3).get('data.rev'), 'c');
 });
 
 test("findAll calls viewForType if useCustomTypeLookup is set to true", function() {
@@ -294,9 +327,7 @@ test("findAll does a GET to view name returned by viewForType if useCustomTypeLo
 
   var allPersons = store.findAll(Person);
 
-  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/myPersonView');
-  expectType('GET');
-  expectData({
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/myPersonView', {
     key: 'myPersonKey',
     include_docs: true // include_docs is overridden
   });
@@ -312,13 +343,8 @@ test("findAll does a GET to view name returned by viewForType if useCustomTypeLo
   equal(allPersons.get('length'), 3);
 
   equal(store.find(Person, 1).get('name'), 'first');
-  equal(store.find(Person, 1).get('data.rev'), 'a');
-
   equal(store.find(Person, 2).get('name'), 'second');
-  equal(store.find(Person, 2).get('data.rev'), 'b');
-
   equal(store.find(Person, 3).get('name'), 'third');
-  equal(store.find(Person, 3).get('data.rev'), 'c');
 });
 
 test("a view is requested via findQuery of type 'view'", function() {
@@ -327,12 +353,27 @@ test("a view is requested via findQuery of type 'view'", function() {
     viewName: 'PERSONS_VIEW'
   });
 
-  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
-  expectType('GET');
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
+  expectState('loaded', false, persons);
+
+  ajaxHash.success({
+    rows: [
+      { doc: { _id: 1, _rev: 'a', name: 'first' } },
+      { doc: { _id: 2, _rev: 'b', name: 'second' } },
+      { doc: { _id: 3, _rev: 'c', name: 'third' } }
+    ]
+  });
+
+  expectState('loaded', true, persons);
+  equal(persons.get('length'), 3);
+
+  equal(store.find(Person, 1).get('name'), 'first');
+  equal(store.find(Person, 2).get('name'), 'second');
+  equal(store.find(Person, 3).get('name'), 'third');
 });
 
 test("a view adds the query options as parameters", function() {
-  var persons = store.findQuery(Person, {
+  store.findQuery(Person, {
     type: 'view',
     viewName: 'PERSONS_VIEW',
     options: {
@@ -342,9 +383,7 @@ test("a view adds the query options as parameters", function() {
     }
   });
 
-  expectUrl('/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW');
-  expectType('GET');
-  expectData({
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/PERSONS_VIEW', {
     keys: ['a', 'b'],
     limit: 10,
     skip: 42
@@ -352,35 +391,32 @@ test("a view adds the query options as parameters", function() {
 });
 
 test("hasMany relationship dirties parent if child is added", function() {
-  store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
-  store.load(Tag, {id: 't2', rev: 't2rev', label: 'tag 2'});
-  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1']});
+  store.load(Comment, {id: 'c1', rev: 'c1rev', text: 'comment 1'});
+  store.load(Comment, {id: 'c2', rev: 'c2rev', text: 'comment 2'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', comments: ['c1']});
 
   var article = store.find(Article, 'a1');
   ok(article);
-  equal(article.get('tags.length'), 1);
+  equal(article.get('comments.length'), 1);
   expectState('dirty', false, article);
 
-  var t2 = store.find(Tag, 't2');
-  ok(t2);
-  article.get('tags').pushObject(t2);
-  // FIXME remove
-  article.get('stateManager').goToState('updated');
+  var c2 = store.find(Comment, 'c2');
+  ok(c2);
+  expectState('dirty', false, c2);
+  article.get('comments').pushObject(c2);
 
-  equal(article.get('tags.length'), 2);
+  equal(article.get('comments.length'), 2);
   expectState('dirty', true, article);
+  expectState('dirty', false, c2);
 
   store.commit();
 
-  expectUrl('/DB_NAME/a1');
-  expectType('PUT');
-  expectData({
-    "_id": "a1",
-    "_rev": "a1rev",
+  expectAjaxCall('PUT', '/DB_NAME/a1', {
+    _id: "a1",
+    _rev: "a1rev",
     ember_type: 'Article',
     label: "article",
-    writer_id: null,
-    tags: ['t1', 't2']
+    comments: ['c1', 'c2']
   });
 
   ajaxHash.success({
@@ -388,40 +424,34 @@ test("hasMany relationship dirties parent if child is added", function() {
     id: 'a1',
     rev: 'a2rev2'
   });
-
-  equal(article.get('data.rev'), 'a2rev2');
 });
 
 test("hasMany relationship dirties parent if child is removed", function() {
-  store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
-  store.load(Tag, {id: 't2', rev: 't2rev', label: 'tag 2'});
-  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1', 't2']});
+  store.load(Comment, {id: 'c1', rev: 'c1rev', text: 'comment 1'});
+  store.load(Comment, {id: 'c2', rev: 'c2rev', text: 'comment 2'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', comments: ['c1', 'c2']});
 
   var article = store.find(Article, 'a1');
   ok(article);
-  equal(article.get('tags.length'), 2);
+  equal(article.get('comments.length'), 2);
   expectState('dirty', false, article);
 
-  var t2 = store.find(Tag, 't2');
-  ok(t2);
-  article.get('tags').removeObject(t2);
-  // FIXME remove
-  article.get('stateManager').goToState('updated');
+  var c2 = store.find(Comment, 'c2');
+  ok(c2);
+  article.get('comments').removeObject(c2);
 
-  equal(article.get('tags.length'), 1);
+  equal(article.get('comments.length'), 1);
   expectState('dirty', true, article);
+  expectState('dirty', false, c2);
 
   store.commit();
 
-  expectUrl('/DB_NAME/a1');
-  expectType('PUT');
-  expectData({
-    "_id": "a1",
-    "_rev": "a1rev",
+  expectAjaxCall('PUT', '/DB_NAME/a1', {
+    _id: "a1",
+    _rev: "a1rev",
     ember_type: 'Article',
     label: "article",
-    writer_id: null,
-    tags: ['t1']
+    comments: ['c1']
   });
 
   ajaxHash.success({
@@ -431,42 +461,40 @@ test("hasMany relationship dirties parent if child is removed", function() {
   });
 
   expectState('dirty', false, article);
-  equal(article.get('data.rev'), 'a2rev2');
 });
 
 test("hasMany relationship dirties child if child is updated", function() {
-  store.load(Tag, {id: 't1', rev: 't1rev', label: 'tag 1'});
-  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', tags: ['t1']});
+  store.load(Comment, {id: 'c1', rev: 'c1rev', text: 'comment 1'});
+  store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', comments: ['c1']});
 
   var article = store.find(Article, 'a1');
-  var tag = store.find(Tag, 't1');
-  ok(tag);
-  expectState('dirty', false, tag);
-
-  tag.set('label', 'tag 1 updated');
+  var comment = store.find(Comment, 'c1');
+  ok(comment);
 
   expectState('dirty', false, article);
-  expectState('dirty', true, tag);
+  expectState('dirty', false, comment);
+
+  comment.set('text', 'comment 1 updated');
+
+  expectState('dirty', false, article);
+  expectState('dirty', true, comment);
 
   store.commit();
 
-  expectUrl('/DB_NAME/t1');
-  expectType('PUT');
-  expectData({
-    "_id": "t1",
-    "_rev": "t1rev",
-    ember_type: 'Tag',
-    label: "tag 1 updated"
+  expectAjaxCall('PUT', '/DB_NAME/c1', {
+    _id: "c1",
+    _rev: "c1rev",
+    ember_type: 'Comment',
+    text: "comment 1 updated"
   });
 
   ajaxHash.success({
     ok: true,
-    id: 't1',
-    rev: 't1rev2'
+    id: 'c1',
+    rev: 'c1rev2'
   });
 
-  expectState('dirty', false, tag);
-  equal(tag.get('data.rev'), 't1rev2');  
+  expectState('dirty', false, comment);
 });
 
 test("belongsTo relationship dirties if item is deleted", function() {
@@ -477,7 +505,9 @@ test("belongsTo relationship dirties if item is deleted", function() {
   var person = store.find(Person, 'p1');
   ok(article);
   ok(person);
+  equal(article.get('writer'), person);
   expectState('dirty', false, article);
+  expectState('dirty', false, person);
 
   article.set('writer', null);
 
@@ -486,11 +516,9 @@ test("belongsTo relationship dirties if item is deleted", function() {
 
   store.commit();
 
-  expectUrl('/DB_NAME/a1');
-  expectType('PUT');
-  expectData({
-    "_id": "a1",
-    "_rev": "a1rev",
+  expectAjaxCall('PUT', '/DB_NAME/a1', {
+    _id: "a1",
+    _rev: "a1rev",
     ember_type: 'Article',
     writer_id: null,
     tags: [],
@@ -504,32 +532,30 @@ test("belongsTo relationship dirties if item is deleted", function() {
   });
 
   expectState('dirty', false, article);
-  equal(article.get('data.rev'), 'a1rev2');  
 });
 
-test("belongsTo relationship dirties item if item is updted", function() {
-  store.load(Person, {id: 'p1', rev: 'p1rev', name: 'author'});
+test("belongsTo relationship dirties item if item is updated", function() {
+  store.load(Person, {id: 'p1', rev: 'p1rev', name: 'author 1'});
+  store.load(Person, {id: 'p2', rev: 'p2rev', name: 'author 2'});
   store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', writer: 'p1'});
 
   var article = store.find(Article, 'a1');
-  var person = store.find(Person, 'p1');
+  var person = store.find(Person, 'p2');
   ok(article);
   ok(person);
   expectState('dirty', false, article);
   expectState('dirty', false, person);
 
-  person.set('name', 'updated writer');
+  person.set('writer', person);
 
-  expectState('dirty', true, person);
-  expectState('dirty', false, article);
+  expectState('dirty', false, person);
+  expectState('dirty', true, article);
 
   store.commit();
 
-  expectUrl('/DB_NAME/p1');
-  expectType('PUT');
-  expectData({
-    "_id": "p1",
-    "_rev": "p1rev",
+  expectAjaxCall('PUT', '/DB_NAME/a1', {
+    _id: "a1",
+    _rev: "a1rev",
     ember_type: 'Person',
     name: "updated writer"
   });
@@ -540,6 +566,20 @@ test("belongsTo relationship dirties item if item is updted", function() {
     rev: 'p1rev2'
   });
 
-  expectState('dirty', false, person);
-  equal(person.get('data.rev'), 'p1rev2');  
+  expectState('dirty', false, article);
+});
+
+var serializer;
+
+module("DS.CouchDBSerializer", {
+  setup: function() {
+    serializer = DS.CouchDBSerializer.create();
+  },
+  teardown: function() {
+    serializer.destroy();
+  }
+});
+
+test("it exists", function() {
+  ok(DS.CouchDBSerializer !== undefined, "DS.CouchDBSerializer is undefined");
 });
