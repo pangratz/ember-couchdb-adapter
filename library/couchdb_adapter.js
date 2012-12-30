@@ -1,4 +1,7 @@
 DS.CouchDBSerializer = DS.Serializer.extend({
+  addEmptyHasMany: false,
+  addEmptyBelongsTo: false,
+
   primaryKey: function(type) {
     return "_id";
   },
@@ -16,6 +19,19 @@ DS.CouchDBSerializer = DS.Serializer.extend({
     if (rev) json._rev = rev;
     json.ember_type = record.constructor.toString();
     return json;
+  },
+
+  addHasMany: function(data, record, key, relationship) {
+    var value = record.get(key);
+    if (this.get('addEmptyHasMany') || !Ember.empty(value)) {
+      data[key] = value.getEach('id');
+    }
+  },
+  addBelongsTo: function(hash, record, key, relationship) {
+    var id = get(record, relationship.key + '.id');
+    if (this.get('addEmptyBelongsTo') || !Ember.empty(id)) {
+      hash[key] = id;
+    }
   }
 });
 
@@ -144,11 +160,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: json,
       context: this,
       success: function(data) {
-        record.eachAssociation(function(name, meta) {
-          if (meta.kind === 'hasMany') {
-            store.didUpdateRelationship(record, name);
-          }
-        });
         store.didSaveRecord(record, $.extend(json, data));
       },
       error: function(xhr, textStatus, errorThrown) {
@@ -163,8 +174,10 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     this.ajax(record.get('id') + '?rev=' + record.get('_data.attributes._rev'), 'DELETE', {
       context: this,
       success: function(data) {
-        store.didDeleteRecord(record);
+        store.didSaveRecord(record);
       }
     });
-  }
+  },
+
+  dirtyRecordsForBelongsToChange: Ember.K
 });
