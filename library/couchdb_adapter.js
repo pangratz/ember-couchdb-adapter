@@ -129,6 +129,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: json,
       context: this,
       success: function(data) {
+        record.eachAssociation(function(name, meta) {
+          if (meta.kind === 'hasMany') {
+            store.didUpdateRelationship(record, name);
+          }
+        });
         store.didSaveRecord(record, $.extend(json, data));
       }
     });
@@ -140,6 +145,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
       data: json,
       context: this,
       success: function(data) {
+        record.eachAssociation(function(name, meta) {
+          if (meta.kind === 'hasMany') {
+            store.didUpdateRelationship(record, name);
+          }
+        });
         store.didSaveRecord(record, $.extend(json, data));
       },
       error: function(xhr, textStatus, errorThrown) {
