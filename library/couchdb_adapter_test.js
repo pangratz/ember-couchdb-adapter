@@ -299,54 +299,7 @@ test("findAll makes a GET to /DB_NAME/_design/DESIGN_DOC/_view/by-ember-type", f
   equal(store.find(Person, 3).get('name'), 'third');
 });
 
-test("findAll calls viewForType if useCustomTypeLookup is set to true", function() {
-  expect(2);
-
-  adapter.set('customTypeLookup', true);
-  adapter.reopen({
-    viewForType: function(type, viewParams) {
-      equal(type, Person);
-      ok(viewParams);
-    }
-  });
-
-  store.findAll(Person);
-});
-
-test("findAll does a GET to view name returned by viewForType if useCustomTypeLookup is set to true", function() {
-  adapter.set('customTypeLookup', true);
-  adapter.reopen({
-    viewForType: function(type, viewParams) {
-      equal(typeof viewParams, 'object', 'viewParams is an object');
-      viewParams.key = "myPersonKey";
-      viewParams.include_docs = false;
-      return 'myPersonView';
-    }
-  });
-
-  var allPersons = store.findAll(Person);
-
-  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/myPersonView', {
-    key: 'myPersonKey',
-    include_docs: true // include_docs is overridden
-  });
-
-  ajaxHash.success({
-    rows: [
-      { doc: { _id: 1, _rev: 'a', name: 'first' } },
-      { doc: { _id: 2, _rev: 'b', name: 'second' } },
-      { doc: { _id: 3, _rev: 'c', name: 'third' } }
-    ]
-  });
-
-  equal(allPersons.get('length'), 3);
-
-  equal(store.find(Person, 1).get('name'), 'first');
-  equal(store.find(Person, 2).get('name'), 'second');
-  equal(store.find(Person, 3).get('name'), 'third');
-});
-
-test("a view is requested via findQuery of type 'view'", function() {
+test("a view can be requested via findQuery", function() {
   var persons = store.findQuery(Person, {
     type: 'view',
     viewName: 'PERSONS_VIEW'
@@ -371,11 +324,10 @@ test("a view is requested via findQuery of type 'view'", function() {
   equal(store.find(Person, 3).get('name'), 'third');
 });
 
-test("a view adds the query options as parameters", function() {
+test("a view adds the query data as parameters", function() {
   store.findQuery(Person, {
-    type: 'view',
     viewName: 'PERSONS_VIEW',
-    options: {
+    data: {
       keys: ['a', 'b'],
       limit: 10,
       skip: 42
@@ -597,6 +549,97 @@ test("belongsTo relationship dirties parent if item is updated", function() {
   });
 
   expectState('dirty', false, article);
+});
+
+test("the adapter has a view method", function() {
+  ok(Ember.canInvoke(adapter, 'view'), "the adapter has no view method");
+});
+
+test("an error is thrown when there is no viewOptions argument specified", function() {
+  raises(function() {
+    adapter.view();
+  });
+});
+
+test("an error is thrown when there is no viewName specified", function() {
+  raises(function() {
+    adapter.view({});
+  });
+});
+
+test("by default #view does a GET for specified view", function() {
+  adapter.view({
+    viewName: 'my_super_cool_view'
+  });
+
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/my_super_cool_view');
+});
+
+test("if a type is specified, the returned documents are added", function() {
+  adapter.view({
+    viewName: 'my_super_cool_view',
+    type: Comment
+  });
+
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/my_super_cool_view');
+
+  ajaxHash.success({
+    rows: [
+      { doc: { _id: 'c1', _rev: 'c1rev' } },
+      { doc: { _id: 'c2', _rev: 'c2rev' } }
+    ]
+  });
+
+  expectState('loaded', true, store.find(Comment, 'c1'));
+  expectState('loaded', true, store.find(Comment, 'c2'));
+});
+
+test("the designDocument for a view can be specified", function() {
+  adapter.view({
+    viewName: 'my_super_cool_view',
+    designDoc: 'LE_DESIGN_DOC'
+  });
+
+  expectAjaxCall('GET', '/DB_NAME/_design/LE_DESIGN_DOC/_view/my_super_cool_view');
+});
+
+test("it is possible to call a view via CouchDBAdapter#view", function() {
+  expect(4);
+
+  adapter.view({
+    viewName: 'my_view',
+    data: {
+      startKey: 'start',
+      include_docs: true,
+      limit: 42
+    },
+    success: function() {
+      ok(true, "it lets you overwrite success");
+    }
+  });
+
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/my_view', {
+    startKey: 'start',
+    include_docs: true,
+    limit: 42
+  });
+
+  ajaxHash.success.apply(ajaxHash.context);
+});
+
+test("it is possible to set an error callback which will be called when #view fails", function() {
+  expect(3);
+
+  adapter.view({
+    viewName: 'my_view',
+    error: function() {
+      ok(true, "it lets you specify an error callback");
+    }
+  });
+
+  expectAjaxCall('GET', '/DB_NAME/_design/DESIGN_DOC/_view/my_view');
+
+  ajaxHash.error();
 });
 
 var serializer;
