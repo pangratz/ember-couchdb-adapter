@@ -9,7 +9,34 @@ window.DS = Ember.Namespace.create({
 
 
 (function() {
+var DeferredMixin = Ember.DeferredMixin,  // ember-runtime/mixins/deferred
+    Evented = Ember.Evented,              // ember-runtime/mixins/evented
+    run = Ember.run,                      // ember-metal/run-loop
+    get = Ember.get;                      // ember-metal/accessors
+
+var LoadPromise = Ember.Mixin.create(Evented, DeferredMixin, {
+  init: function() {
+    this._super.apply(this, arguments);
+    this.one('didLoad', function() {
+      run(this, 'resolve', this);
+    });
+
+    if (get(this, 'isLoaded')) {
+      this.trigger('didLoad');
+    }
+  }
+});
+
+DS.LoadPromise = LoadPromise;
+
+})();
+
+
+
+(function() {
 var get = Ember.get, set = Ember.set;
+
+var LoadPromise = DS.LoadPromise; // system/mixins/load_promise
 
 /**
   A record array is an array that contains records of a certain type. The record
@@ -19,7 +46,7 @@ var get = Ember.get, set = Ember.set;
   in response to queries.
 */
 
-DS.RecordArray = Ember.ArrayProxy.extend(Ember.Evented, {
+DS.RecordArray = Ember.ArrayProxy.extend(Ember.Evented, LoadPromise, {
   /**
     The model type contained by this record array.
 
@@ -2358,13 +2385,13 @@ DS.Store = Ember.Object.extend(DS._Mappable, {
     @param {Object} data the data to load
   */
   load: function(type, data, prematerialized) {
+    var id;
+
     if (typeof data === 'number' || typeof data === 'string') {
       id = data;
       data = prematerialized;
       prematerialized = null;
     }
-
-    var id;
 
     if (prematerialized && prematerialized.id) {
       id = prematerialized.id;
@@ -3443,13 +3470,15 @@ DS.StateManager = Ember.StateManager.extend({
 
 
 (function() {
+var LoadPromise = DS.LoadPromise; // system/mixins/load_promise
+
 var get = Ember.get, set = Ember.set, none = Ember.isNone, map = Ember.EnumerableUtils.map;
 
 var retrieveFromCurrentState = Ember.computed(function(key) {
   return get(get(this, 'stateManager.currentState'), key);
 }).property('stateManager.currentState');
 
-DS.Model = Ember.Object.extend(Ember.Evented, {
+DS.Model = Ember.Object.extend(Ember.Evented, LoadPromise, {
   isLoaded: retrieveFromCurrentState,
   isDirty: retrieveFromCurrentState,
   isSaving: retrieveFromCurrentState,
@@ -3509,6 +3538,8 @@ DS.Model = Ember.Object.extend(Ember.Evented, {
   _data: null,
 
   init: function() {
+    this._super();
+
     var stateManager = DS.StateManager.create({ record: this });
     set(this, 'stateManager', stateManager);
 
@@ -5981,7 +6012,7 @@ DS.Serializer = Ember.Object.extend({
         reifiedConfigurations = Ember.Map.create();
 
     configurations.forEach(function(key, mapping) {
-      if (typeof key === 'string') {
+      if (typeof key === 'string' && key !== 'plurals') {
         var type = Ember.get(Ember.lookup, key);
         Ember.assert("Could not find model at path" + key, type);
 
@@ -6381,7 +6412,8 @@ DS.JSONSerializer = DS.Serializer.extend({
   // define a plurals hash in your subclass to define
   // special-case pluralization
   pluralize: function(name) {
-    return this.plurals[name] || name + "s";
+    var plurals = this.configurations.get('plurals');
+    return (plurals && plurals[name]) || name + "s";
   },
 
   rootForType: function(type) {
@@ -7103,7 +7135,7 @@ DS.Adapter.reopenClass({
 
     // If a mapping configuration is provided, peel it off and apply it
     // using the DS.Adapter.map API.
-    var mappings = newValue.mappings;
+    var mappings = newValue && newValue.mappings;
     if (mappings) {
       this.map(key, mappings);
       delete newValue.mappings;
@@ -7315,7 +7347,7 @@ var get = Ember.get, set = Ember.set, merge = Ember.merge;
 
   ### Conventional Names
 
-  Attribute names in your JSON payload should be the camelized versions of the
+  Attribute names in your JSON payload should be the underscored versions of
   the attributes in your Ember.js models.
 
   For example, if you have a `Person` model:
@@ -7348,8 +7380,6 @@ DS.RESTAdapter = DS.Adapter.extend({
 
   init: function() {
     this._super.apply(this, arguments);
-
-    get(this, 'serializer').plurals = this.plurals || {};
   },
 
   shouldSave: function(record) {
