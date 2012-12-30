@@ -14,6 +14,10 @@ DS.CouchDBSerializer = DS.JSONSerializer.extend({
     return json;
   },
 
+  extract: function(loader, json, type) {
+    this.extractRecordRepresentation(loader, type, json);
+  },
+
   extractId: function(type, hash) {
     return hash._id || hash.id;
   },
@@ -82,19 +86,14 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   stringForType: function(type) {
-    return type.toString();
-  },
-
-  addTypeProperty: function(json, type) {
-    var typeAttribute = this.get('typeAttribute');
-    json[typeAttribute] = this.stringForType(type);
+    return this.get('serializer').stringForType(type);
   },
 
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
       context: this,
       success: function(data) {
-        store.loadMany(type, [data]);
+        this.didFindRecord(store, type, data, id);
       }
     });
   },
@@ -188,7 +187,5 @@ DS.CouchDBAdapter = DS.Adapter.extend({
         store.didSaveRecord(record);
       }
     });
-  },
-
-  dirtyRecordsForBelongsToChange: Ember.K
+  }
 });

@@ -82,8 +82,8 @@ module("DS.CouchDBAdapter", {
     Article.toString = function() { return 'Article'; };
 
     Article.reopen({
-      writer: DS.belongsTo(Person, { inverse: 'articles' }),
-      comments: DS.hasMany(Comment, { inverse: 'article' })
+      writer: DS.belongsTo(Person),
+      comments: DS.hasMany(Comment)
     });
   },
   teardown: function() {
@@ -517,8 +517,6 @@ test("belongsTo relationship dirties if item is deleted", function() {
     _id: "a1",
     _rev: "a1rev",
     ember_type: 'Article',
-    writer_id: null,
-    tags: [],
     label: "article"
   });
 
@@ -531,7 +529,7 @@ test("belongsTo relationship dirties if item is deleted", function() {
   expectState('dirty', false, article);
 });
 
-test("belongsTo relationship dirties item if item is updated", function() {
+test("belongsTo relationship dirties parent if item is updated", function() {
   store.load(Person, {id: 'p1', rev: 'p1rev', name: 'author 1'});
   store.load(Person, {id: 'p2', rev: 'p2rev', name: 'author 2'});
   store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', writer: 'p1'});
@@ -543,7 +541,7 @@ test("belongsTo relationship dirties item if item is updated", function() {
   expectState('dirty', false, article);
   expectState('dirty', false, person);
 
-  person.set('writer', person);
+  article.set('writer', person);
 
   expectState('dirty', false, person);
   expectState('dirty', true, article);
@@ -553,14 +551,15 @@ test("belongsTo relationship dirties item if item is updated", function() {
   expectAjaxCall('PUT', '/DB_NAME/a1', {
     _id: "a1",
     _rev: "a1rev",
-    ember_type: 'Writer',
-    name: "updated writer"
+    ember_type: 'Article',
+    label: "article",
+    writer: "p2"
   });
 
   ajaxHash.success({
     ok: true,
-    id: 'p1',
-    rev: 'p1rev2'
+    id: 'a1',
+    rev: 'a1rev2'
   });
 
   expectState('dirty', false, article);
