@@ -460,6 +460,39 @@ test("hasMany relationship dirties parent if child is removed", function() {
   expectState('dirty', false, article);
 });
 
+test("hasMany relationship works with a newly created parent", function() {
+  store.load(Comment, {id: 'c1', rev: 'c1rev', text: 'comment 1'});
+  store.load(Comment, {id: 'c2', rev: 'c2rev', text: 'comment 2'});
+
+  var article = store.createRecord(Article, {
+    label: 'article'
+  });
+  article.get('comments').pushObjects([store.find(Comment, 'c1'), store.find(Comment, 'c2')]);
+
+  expectState('dirty', true, article);
+  expectState('new', true, article);
+
+  store.commit();
+
+  expectState('saving', true, article);
+
+  expectAjaxCall('POST', '/DB_NAME/', {
+    ember_type: 'Article',
+    label: "article",
+    comments: ['c1', 'c2']
+  });
+
+  ajaxHash.success({
+    ok: true,
+    id: 'a1',
+    rev: 'a1rev'
+  });
+
+  expectState('dirty', false, article);
+  expectState('new', false, article);
+  expectState('loaded', true, article);
+});
+
 test("hasMany relationship dirties child if child is updated", function() {
   store.load(Comment, {id: 'c1', rev: 'c1rev', text: 'comment 1'});
   store.load(Article, {id: 'a1', rev: 'a1rev', label: 'article', comments: ['c1']});
