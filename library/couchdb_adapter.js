@@ -67,7 +67,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     hash.type = type;
     hash.dataType = 'json';
     hash.contentType = 'application/json; charset=utf-8';
-    hash.context = this;
+    hash.context = hash.context || this;
 
     if (hash.data && type !== 'GET') {
       hash.data = JSON.stringify(hash.data);
@@ -89,7 +89,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   find: function(store, type, id) {
     this.ajax(id, 'GET', {
-      context: this,
       success: function(data) {
         this.didFindRecord(store, type, data, id);
       }
@@ -102,7 +101,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
         include_docs: true,
         keys: ids
       },
-      context: this,
       success: function(data) {
         store.loadMany(type, data.rows.getEach('doc'));
       }
@@ -155,7 +153,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     var json = this.serialize(record);
     this.ajax('', 'POST', {
       data: json,
-      context: this,
       success: function(data) {
         store.didSaveRecord(record, $.extend(json, data));
       }
@@ -166,7 +163,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     var json = this.serialize(record, { includeId: true });
     this.ajax(record.get('id'), 'PUT', {
       data: json,
-      context: this,
       success: function(data) {
         store.didSaveRecord(record, $.extend(json, data));
       },
@@ -180,7 +176,6 @@ DS.CouchDBAdapter = DS.Adapter.extend({
 
   deleteRecord: function(store, type, record) {
     this.ajax(record.get('id') + '?rev=' + record.get('_data.attributes._rev'), 'DELETE', {
-      context: this,
       success: function(data) {
         store.didSaveRecord(record);
       }
