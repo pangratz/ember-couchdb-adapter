@@ -76,13 +76,11 @@ DS.CouchDBAdapter = DS.Adapter.extend({
     Ember.$.ajax(hash);
   },
 
-  shouldCommit: function(record, relationships) {
-    return this._super.apply(arguments);
-  },
-
   ajax: function(url, type, hash) {
     var db = this.get('db');
-    return this._ajax('/%@/%@'.fmt(db, url || ''), type, hash);
+    var fullUrl = '/%@/%@'.fmt(db, url || '');
+
+    this._ajax(fullUrl, type, hash);
   },
 
   stringForType: function(type) {
@@ -165,7 +163,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   updateRecord: function(store, type, record) {
-    var json = this.serialize(record, {associations: true, includeId: true });
+    var json = this.serialize(record, { includeId: true });
     this.ajax(record.get('id'), 'PUT', {
       data: json,
       context: this,
