@@ -81,6 +81,9 @@ module("DS.CouchDBAdapter", {
     });
     Article.toString = function() { return 'Article'; };
 
+    Comment.reopen({
+      article: DS.belongsTo(Article)
+    });
     Person.reopen({
       articles: DS.hasMany(Article)
     });
