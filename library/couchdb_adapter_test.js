@@ -43,6 +43,8 @@ var expectState = function(state, value, p) {
 
 module("DS.CouchDBAdapter", {
   setup: function() {
+    ajaxUrl = ajaxType = ajaxHash = "AJAX_NOT_INVOKED";
+
     adapter = DS.CouchDBAdapter.create({
       db: 'DB_NAME',
       designDoc: 'DESIGN_DOC',
