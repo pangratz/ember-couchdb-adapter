@@ -1,26 +1,42 @@
-DS.CouchDBSerializer = DS.Serializer.extend({
+DS.CouchDBSerializer = DS.JSONSerializer.extend({
+  typeAttribute: 'ember_type',
   addEmptyHasMany: false,
   addEmptyBelongsTo: false,
 
-  primaryKey: function(type) {
-    return "_id";
-  },
-  extractId: function(type, hash) {
-    return hash._id || hash.id;
-  },
-  materializeFromData: function(record, hash) {
+  materialize: function(record, hash) {
     this._super.apply(this, arguments);
     record.materializeAttribute("_rev", hash.rev || hash._rev);
-    record.materializeAttribute("_id", hash.id || hash._id);
   },
-  toData: function(record, options) {
+  serialize: function(record, options) {
     var json = this._super.apply(this, arguments);
-    var rev = record.get('_data.attributes._rev');
-    if (rev) json._rev = rev;
-    json.ember_type = record.constructor.toString();
+    this.addRevision(json, record, options);
+    this.addTypeAttribute(json, record);
     return json;
   },
 
+  extractId: function(type, hash) {
+    return hash._id || hash.id;
+  },
+  stringForType: function(type) {
+    return type.toString();
+  },
+  getRecordRevision: function(record) {
+    return record.get('_data.attributes._rev');
+  },
+
+  addId: function(json, key, id) {
+    json._id = id;
+  },
+  addRevision: function(json, record, options) {
+    if (options && options.includeId) {
+      var rev = this.getRecordRevision(record);
+      if (rev) json._rev = rev;
+    }
+  },
+  addTypeAttribute: function(json, record) {
+    var typeAttribute = this.get('typeAttribute');
+    json[typeAttribute] = this.stringForType(record.constructor);
+  },
   addHasMany: function(data, record, key, relationship) {
     var value = record.get(key);
     if (this.get('addEmptyHasMany') || !Ember.empty(value)) {
@@ -139,23 +155,18 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   createRecord: function(store, type, record) {
-    var json = this.toData(record);
+    var json = this.serialize(record);
     this.ajax('', 'POST', {
       data: json,
       context: this,
       success: function(data) {
-        record.eachAssociation(function(name, meta) {
-          if (meta.kind === 'hasMany') {
-            store.didUpdateRelationship(record, name);
-          }
-        });
         store.didSaveRecord(record, $.extend(json, data));
       }
     });
   },
 
   updateRecord: function(store, type, record) {
-    var json = this.toData(record, {associations: true, includeId: true });
+    var json = this.serialize(record, {associations: true, includeId: true });
     this.ajax(record.get('id'), 'PUT', {
       data: json,
       context: this,
