@@ -1,0 +1,11 @@
+{
+  "framework": "qunit",
+  "src_files": [
+    "library/vendor/jquery.js",
+    "library/vendor/handlebars.js",
+    "library/vendor/ember.js",
+    "library/vendor/ember-data.js",
+    "library/couchdb_adapter.js",
+    "library/couchdb_adapter_test.js"
+  ]
+}

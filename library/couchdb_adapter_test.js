@@ -502,7 +502,6 @@ test("belongsTo relationship dirties if item is deleted", function() {
   var person = store.find(Person, 'p1');
   ok(article);
   ok(person);
-  equal(article.get('writer'), person);
   expectState('dirty', false, article);
   expectState('dirty', false, person);
 
