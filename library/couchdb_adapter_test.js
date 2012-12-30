@@ -81,12 +81,6 @@ module("DS.CouchDBAdapter", {
     });
     Article.toString = function() { return 'Article'; };
 
-    Comment.reopen({
-      article: DS.belongsTo(Article)
-    });
-    Person.reopen({
-      articles: DS.hasMany(Article)
-    });
     Article.reopen({
       writer: DS.belongsTo(Person, { inverse: 'articles' }),
       comments: DS.hasMany(Comment, { inverse: 'article' })
@@ -559,7 +553,7 @@ test("belongsTo relationship dirties item if item is updated", function() {
   expectAjaxCall('PUT', '/DB_NAME/a1', {
     _id: "a1",
     _rev: "a1rev",
-    ember_type: 'Person',
+    ember_type: 'Writer',
     name: "updated writer"
   });
 
@@ -585,4 +579,8 @@ module("DS.CouchDBSerializer", {
 
 test("it exists", function() {
   ok(DS.CouchDBSerializer !== undefined, "DS.CouchDBSerializer is undefined");
+});
+
+test("it is a DS.JSONSerializer", function() {
+  ok(DS.JSONSerializer.detect(DS.CouchDBSerializer), "DS.CouchDBSerializer is a DS.JSONSerializer");
 });
