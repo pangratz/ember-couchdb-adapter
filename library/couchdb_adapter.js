@@ -5,12 +5,12 @@ DS.CouchDBSerializer = DS.Serializer.extend({
   extractId: function(type, hash) {
     return hash._id || hash.id;
   },
-  materializeFromJSON: function(record, hash) {
+  materializeFromData: function(record, hash) {
     this._super.apply(this, arguments);
     record.materializeAttribute("_rev", hash.rev || hash._rev);
     record.materializeAttribute("_id", hash.id || hash._id);
   },
-  toJSON: function(record, options) {
+  toData: function(record, options) {
     var json = this._super.apply(this, arguments);
     var rev = record.get('_data.attributes._rev');
     if (rev) json._rev = rev;
@@ -123,8 +123,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   createRecord: function(store, type, record) {
-    var json = record.toJSON();
-    this.addTypeProperty(json, type);
+    var json = this.toData(record);
     this.ajax('', 'POST', {
       data: json,
       context: this,
@@ -140,7 +139,7 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   updateRecord: function(store, type, record) {
-    var json = record.toJSON({associations: true, includeId: true });
+    var json = this.toData(record, {associations: true, includeId: true });
     this.ajax(record.get('id'), 'PUT', {
       data: json,
       context: this,
