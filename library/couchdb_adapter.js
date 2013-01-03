@@ -76,8 +76,8 @@ DS.CouchDBAdapter = DS.Adapter.extend({
   },
 
   ajax: function(url, type, hash) {
-    var db = this.get('db');
-    var fullUrl = '/%@/%@'.fmt(db, url || '');
+    var dbName = this.get('dbName');
+    var fullUrl = '/%@/%@'.fmt(dbName, url || '');
 
     this._ajax(fullUrl, type, hash);
   },

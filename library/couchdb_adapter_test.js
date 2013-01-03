@@ -46,7 +46,7 @@ module("DS.CouchDBAdapter", {
     ajaxUrl = ajaxType = ajaxHash = "AJAX_NOT_INVOKED";
 
     adapter = DS.CouchDBAdapter.create({
-      db: 'DB_NAME',
+      dbName: 'DB_NAME',
       designDoc: 'DESIGN_DOC',
       _ajax: function(url, type, hash) {
         var success = hash.success,
