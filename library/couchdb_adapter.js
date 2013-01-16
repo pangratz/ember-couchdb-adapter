@@ -43,13 +43,13 @@ DS.CouchDBSerializer = DS.JSONSerializer.extend({
   },
   addHasMany: function(data, record, key, relationship) {
     var value = record.get(key);
-    if (this.get('addEmptyHasMany') || !Ember.empty(value)) {
+    if (this.get('addEmptyHasMany') || !Ember.isEmpty(value)) {
       data[key] = value.getEach('id');
     }
   },
   addBelongsTo: function(hash, record, key, relationship) {
     var id = get(record, relationship.key + '.id');
-    if (this.get('addEmptyBelongsTo') || !Ember.empty(id)) {
+    if (this.get('addEmptyBelongsTo') || !Ember.isEmpty(id)) {
       hash[key] = id;
     }
   }
